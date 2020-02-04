@@ -1,0 +1,34 @@
+{
+  "slug": "Mog",
+  "name": "MogsModules",
+  "version": "1.0.0",
+  "license": "cc0-0.1",
+  "brand": "Mog",
+  "author": "Mog",
+  "authorEmail": "",
+  "authorUrl": "",
+  "pluginUrl": "",
+  "manualUrl": "",
+  "sourceUrl": "",
+  "donateUrl": "",
+  "changelogUrl": "",
+  "modules": [
+    {
+      "slug": "Quantizer",
+      "name": "Quantizer",
+      "description": "",
+      "tags": [
+        "Quantizer"
+      ]
+    },
+    {
+      "slug": "Network",
+      "name": "Network",
+      "description": "",
+      "tags": [
+        "Sequencer",
+        "Random"
+      ]
+    }
+  ]
+}
