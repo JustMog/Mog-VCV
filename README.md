@@ -14,7 +14,7 @@ Node outputs that are disconnected are skipped.
 
 You can generate a repeating sequence by connecting nodes together.
 
-![Demo](/doc/network_demo.png)
+![Demo](/doc/network_demo.gif)
 
 **Polyphony:**  
 Network features up to 16 polyphony channels and three different polyphony modes.  
