@@ -8,26 +8,18 @@
   "authorEmail": "",
   "authorUrl": "",
   "pluginUrl": "",
-  "manualUrl": "",
-  "sourceUrl": "",
+  "manualUrl": "https://github.com/JustMog/Mog-VCV",
+  "sourceUrl": "https://github.com/JustMog/Mog-VCV",
   "donateUrl": "",
   "changelogUrl": "",
   "modules": [
     {
-      "slug": "Quantizer",
-      "name": "Quantizer",
-      "description": "",
-      "tags": [
-        "Quantizer"
-      ]
-    },
-    {
       "slug": "Network",
       "name": "Network",
-      "description": "",
+      "description": "Node-based polyphonic sequencer",
       "tags": [
         "Sequencer",
-        "Random"
+        "Polyphonic"
       ]
     }
   ]
