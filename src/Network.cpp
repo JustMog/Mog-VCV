@@ -3,13 +3,9 @@
 
 #define PI 3.14159265
 
-
-//todo: save & load polyphony settings
-//attenuvert input + knob add instead of override?
+//attenuvert input + knob add instead of override? different scaling?
 //changeable skins (light / dark)
 //expansions??
-//MANUAL!
-//how do git hub??
 
 enum PolyMode {
     ROTATE_MODE,
