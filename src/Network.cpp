@@ -3,12 +3,11 @@
 
 #define PI 3.14159265
 
-// FIX RESET BUG https://twitter.com/AriaSalvatrice/status/1225099320342564870
 //polyphic inputs! 
+//pulse mode?
 //attenuvert input + knob add instead of override? different scaling?
 //changeable skins (light / dark)
 //expansions??
-
 
 
 enum PolyMode {
@@ -109,6 +108,7 @@ struct OutputRouter{
 const int NODE_NUM_INS = 2;
 const int NODE_NUM_OUTS = 4;
 
+
 struct Node{
     Param* knob;
     Light* light;
@@ -119,6 +119,9 @@ struct Node{
     int id;
     int state = -1;
     bool bypass = false;
+
+	const float LIGHT_FADE = 2;
+	const float TRIG_THRESHOLD = 0.00001;
 
     float inputsPrev[NODE_NUM_INS];
     int toChannel = 0;
@@ -162,7 +165,7 @@ struct Node{
             bypass =! bypass;
             if(bypass) closeRelay();
         }
-		light->setBrightness(light->getBrightness()-1.f*dt);
+		light->setBrightness(light->getBrightness()-LIGHT_FADE*dt);
     
         float maxVoltage = -1;
         for (int in = 0; in < NODE_NUM_INS; in++){
@@ -170,7 +173,7 @@ struct Node{
             float newVal = getInput(in)->getVoltage();
             if(newVal > maxVoltage) maxVoltage = newVal;
             
-            if(inputsPrev[in] <= 0 && newVal > 0){
+            if(inputsPrev[in] <= TRIG_THRESHOLD && newVal > TRIG_THRESHOLD){
                 trigger();                                       
             }
             inputsPrev[in] = newVal;
@@ -186,7 +189,7 @@ struct Node{
                 relayTo->setVoltage(maxVoltage, toChannel);
 
                 if(relayTo == outputRouter->gateOut){
-					light->setBrightness(std::max(maxVoltage/10.f, light->getBrightness()-1.f*dt));
+					light->setBrightness(std::max(maxVoltage/10.f, light->getBrightness()-LIGHT_FADE*dt));
 					float out = knob->getValue();
 					out = rescale(out, 0.f, 1.f, outputRouter->cvMin, outputRouter->cvMax);
                     outputRouter->cvOut->setVoltage(out, toChannel);
@@ -306,6 +309,25 @@ struct Network : Module {
             nodes[node].process(args.sampleTime);
         }
     }
+
+	json_t* dataToJson() override {
+		json_t* rootJ = json_object();
+		json_object_set_new(rootJ, "channels", json_integer(outputRouter.channels));
+		json_object_set_new(rootJ, "polyMode", json_integer(outputRouter.polyMode));
+
+		return rootJ;
+	}
+
+	void dataFromJson(json_t* rootJ) override {
+		json_t* channelsJ = json_object_get(rootJ, "channels");
+		if (channelsJ)
+			outputRouter.setChannels(json_integer_value(channelsJ));
+
+		json_t* polyModeJ = json_object_get(rootJ, "polyMode");
+		if (polyModeJ)
+			outputRouter.setPolyMode((PolyMode) json_integer_value(polyModeJ));
+		
+	}
 
 };
 
@@ -457,10 +479,10 @@ struct NetworkWidget : ModuleWidget {
 		if (module) {
 			for(int node = 0; node < 4*4; node++){
 				if(module->nodes[node].bypass){
-					knobLights[node]->bgColor = nvgRGB(0x00,0x00,0x00); 	
+					knobLights[node]->bgColor = nvgRGB(0x50,0x00,0x00); 	
 				}
 				else{ 
-					knobLights[node]->bgColor = nvgRGB(0x50, 0x50, 0x50);
+					knobLights[node]->bgColor = nvgRGB(0x20, 0x20, 0x20);
 				}
 			}
 		}
