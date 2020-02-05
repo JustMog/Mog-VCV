@@ -3,9 +3,13 @@
 
 #define PI 3.14159265
 
+// FIX RESET BUG https://twitter.com/AriaSalvatrice/status/1225099320342564870
+//polyphic inputs! 
 //attenuvert input + knob add instead of override? different scaling?
 //changeable skins (light / dark)
 //expansions??
+
+
 
 enum PolyMode {
     ROTATE_MODE,
@@ -229,7 +233,7 @@ struct Node{
 struct Network : Module {
 	enum ParamIds {
 		ENUMS(VAL_PARAM, 4 * 4),
-		ENUMS(BYPASS_PARAM, 4 * 4),
+		ENUMS(BYPASS_PARAM, 2),
 		ATTENUVERSION_PARAM,
 		BIPOLAR_PARAM,
         RESET_PARAM,
@@ -238,7 +242,7 @@ struct Network : Module {
 	enum InputIds {
 		ENUMS(TRIG_INPUT, NODE_NUM_INS * 4 * 4),
 		ATTENUVERSION_INPUT,
-        ENUMS(RESET_INPUT,5),
+        ENUMS(RESET_INPUT,6),
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -259,11 +263,16 @@ struct Network : Module {
 
     Network() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);		
-        configParam(ATTENUVERSION_PARAM, -1.f, 1.f, 0.4f, "CV Attenuversion", "%", 0, 100);
+        
+		configParam(ATTENUVERSION_PARAM, -1.f, 1.f, 0.4f, "CV Attenuversion", "%", 0, 100);
         configParam(BIPOLAR_PARAM, 0.f, 1.f, 1.f, "CV Bipolar");		
+        configParam(RESET_PARAM, 0.f, 1.f, 0.f, "Reset");	
+		configParam(BYPASS_PARAM, 0.f, 1.f, 0.f, "Bypass");	
+		configParam(BYPASS_PARAM+1, 0.f, 1.f, 0.f, "Bypass");	
+       
+	    outputRouter.init(&outputs[CV_OUTPUT], &outputs[GATE_OUTPUT]);
         
-        outputRouter.init(&outputs[CV_OUTPUT], &outputs[GATE_OUTPUT]);
-        
+		int bypass = 0;
 		for(int i = 0; i < 4*4; i++){
             configParam(VAL_PARAM + i, 0.f, 1.f, 0.5f, "");		
             nodes[i].init(i, 
@@ -272,7 +281,7 @@ struct Network : Module {
                 &inputs[TRIG_INPUT+(i*2)], 
                 &outputs[TRIG_OUTPUT+(i*4)], 
                 &outputRouter,
-				(i == 0 or i == 8) ? &params[BYPASS_PARAM+i] : nullptr
+				(i == 0 or i == 8) ? &params[BYPASS_PARAM+bypass++] : nullptr
             );
 
         }
@@ -379,6 +388,7 @@ struct NetworkWidget : ModuleWidget {
 		int nodesDone = 0;
         int insDone = 0;
         int outsDone = 0;
+		int bypassesDone = 0;
 		float angleOffset = 0;// PI/6;
 
 		for(int i = 0; i < 4; i++){
@@ -414,7 +424,7 @@ struct NetworkWidget : ModuleWidget {
 				if( j == 0 && i % 2 == 0){
 					x = cos(PI*2/6)*dist*2;
 					y = sin(PI*2/6)*dist*2;
-					addParam(createParamCentered<PushButtonMomentaryLarge>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_PARAM+nodesDone));
+					addParam(createParamCentered<PushButtonMomentaryLarge>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_PARAM+bypassesDone++));
 				}
 				nodesDone++;
 			}
