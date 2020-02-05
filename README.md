@@ -26,7 +26,7 @@ Instead, Network has "Fixed", in which each of the 16 nodes gets its own channel
 Nodes 1 and 9 can be "bypassed" with the buttons next to them.  
 When in bypass mode, a node will still relay to the node outputs as normal, but will skip outputting its own value to the main cv output and relaying to the main gate output.
 
-Though Network will work just fine when sent triggers, it actually takes and relays any input signal, triggering when the input goes from <=0 to >0.  
+Though Network will work just fine when sent triggers, it actually takes and relays any input signal, triggering when the input exceeds a threshold of 0.00001v.
 When relaying input signals, the maximum value of the two inputs is relayed.
 
 Finding creative uses for this is left up to the reader.
