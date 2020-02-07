@@ -35,7 +35,7 @@ CV Attenuversion scales the voltage range of all channels of the main CV out.
 The input will override the knob and uses the 1v/Octave standard.
 
 Gate length affects all channels of the main Gate out. It does not affect node outputs.  
-The knob is on an exponential scale from 0 - 10 seconds. 
+The knob is on an exponential scale from 0 - 10 seconds.  
 Input scales the value on the knob linearly such that 0-10v = 0-100%.  
 Polyphonic input is accepted to scale each output channel separately. 
 If a poly input with too few channels is used, the remaining channels get a default of 100% of the knob value, in direct contravention of the VCV standard. 
