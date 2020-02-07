@@ -20,6 +20,14 @@ struct PushButtonMomentaryLarge : SvgSwitch {
 	}
 };
 
+struct PushButtonLarge : SvgSwitch {
+	PushButtonLarge() {
+		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_large_off.svg")));
+		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_large_on.svg")));
+		momentary = false;
+	}
+};
+
 
 struct RockerSwitchHorizontal: SvgSwitch {
 	RockerSwitchHorizontal() {
@@ -35,11 +43,6 @@ struct RockerSwitchVertical: SvgSwitch {
 	}
 };
 
-struct HexJackIn : SVGPort {
-	HexJackIn() {
-		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/socket_hex_light.svg")));
-	}
-};
 
 struct RoundJackOut : SVGPort {
 	RoundJackOut() {
@@ -50,12 +53,6 @@ struct RoundJackOut : SVGPort {
 struct RoundJackOutRinged : SVGPort {
 	RoundJackOutRinged() {
 		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/socket_round_dark_ring.svg")));
-	}
-};
-
-struct HexJackOut : SVGPort {
-	HexJackOut() {
-		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/socket_hex_dark.svg")));
 	}
 };
 

@@ -3864,10 +3864,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="2"
-     inkscape:cx="229.69357"
-     inkscape:cy="38.276353"
+     inkscape:cx="301.36294"
+     inkscape:cy="200.77998"
      inkscape:document-units="mm"
-     inkscape:current-layer="g1887"
+     inkscape:current-layer="layer2"
      showgrid="false"
      inkscape:window-width="1600"
      inkscape:window-height="1137"
@@ -3895,10 +3895,9 @@
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="Light Base"
-     style="display:none"
-     sodipodi:insensitive="true">
+     style="display:none">
     <rect
-       style="fill:#e9e6df;fill-opacity:1;stroke:#c8c2b3;stroke-width:3.71199989;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#e9e6df;fill-opacity:1;stroke:#c8c2b3;stroke-width:1.29999995;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="rect823"
        width="132.08"
        height="128.5"
@@ -4334,8 +4333,7 @@
          y="126.78053"
          style="stroke-width:0.26458332" /></text>
     <g
-       aria-label="0v    -5v
-10v    5v"
+       aria-label="0v    -5v 10v    5v"
        style="font-style:italic;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:4.93888855px;line-height:0.5;font-family:'Exo 2';-inkscape-font-specification:'Exo 2 Bold Italic';letter-spacing:0px;word-spacing:0px;fill:#8a8a8a;fill-opacity:1;stroke:none;stroke-width:0.26458332"
        id="text1694">
       <path

@@ -19,7 +19,6 @@ enum PolyMode {
     NUM_POLY_MODES
 };
 
-
 #define NODE_NUM_INS 2
 #define NODE_NUM_OUTS 4
 
@@ -37,8 +36,6 @@ struct Node{
 
     int id;
 	int state = -1;
-    bool bypass = false;
-	dsp::SchmittTrigger bypassTrigger;
 	float lightBrightness = 0.f;
 
     OutputRouter* outputRouter;   
@@ -66,11 +63,6 @@ struct Node{
         //light
 		light->setSmoothBrightness(lightBrightness, dt);
 		
-		//bypass toggle
-		if(bypassBtn != nullptr && bypassTrigger.process(bypassBtn->getValue())){
-            bypass =! bypass;
-        }
-
 		//send pulse outputs
 		for(int out = 0; out < NODE_NUM_OUTS; out++){
 			getOutput(out)->setVoltage(outPulses[out].process(dt)*10.f);
@@ -97,7 +89,7 @@ struct Node{
 
         for(int i = 0; i < NODE_NUM_OUTS + 1; i++){
             if(state == -1){
-                if(not bypass){		
+                if(bypassBtn == nullptr or not bypassBtn->getValue()){		
 					play();
                     advanceState();
                     return;
@@ -140,8 +132,6 @@ struct OutputRouter{
     Output* cvOut;
     Output* gateOut;
 	Output* retrigOut;
-
-
 
     void init(	
 		Param* _bipolar,
@@ -529,7 +519,7 @@ struct NetworkWidget : ModuleWidget {
 				if( j == 0 && i % 2 == 0){
 					x = cos(PI*2/6)*dist*2;
 					y = sin(PI*2/6)*dist*2;
-					addParam(createParamCentered<PushButtonMomentaryLarge>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_PARAM+bypassesDone++));
+					addParam(createParamCentered<PushButtonLarge>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_PARAM+bypassesDone++));
 				}
 				nodesDone++;
 			}
@@ -566,7 +556,7 @@ struct NetworkWidget : ModuleWidget {
 
 		if (module) {
 			for(int node = 0; node < 4*4; node++){
-				if(module->nodes[node].bypass){
+				if(module->nodes[node].bypassBtn != nullptr && module->nodes[node].bypassBtn->getValue()){
 					knobLights[node]->bgColor = nvgRGB(0x10,0x00,0x00); 	
 				}
 				else{ 
@@ -580,7 +570,6 @@ struct NetworkWidget : ModuleWidget {
 	void appendContextMenu(Menu* menu) override {
 		Network* module = dynamic_cast<Network*>(this->module);
 
-		menu->addChild(new MenuEntry);
 		menu->addChild(new MenuSeparator());
 
 		ChannelItem* channelItem = new ChannelItem;
