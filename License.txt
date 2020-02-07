@@ -1,0 +1,3 @@
+Thus plugin is licensed under the creative commons CC0 1.0 Universal Public Domain Dedication - https://creativecommons.org/publicdomain/zero/1.0/;
+
+The Component Library graphics for Rack reproduced here are copyright © 2019 Grayscale and licensed under CC BY-NC 4.0. - https://creativecommons.org/licenses/by-nc/4.0/
