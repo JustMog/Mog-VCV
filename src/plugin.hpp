@@ -2,6 +2,9 @@
 #include <rack.hpp>
 #include "mog_components.hpp"
 
+// Explicit <array> include required on OS X
+#include <array> 
+
 using namespace rack;
 
 // Declare the Plugin, defined in plugin.cpp
