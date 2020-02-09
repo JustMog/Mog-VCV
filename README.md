@@ -17,6 +17,7 @@ You can generate a repeating sequence by connecting nodes together.
 ![Demo](/doc/network_demo.gif)
 
 **Polyphony:**  
+
 Network features up to 16 polyphony channels and three different polyphony modes.  
 "Rotate" and "Reset" modes function identically to the modes of the same name found on the VCV Core modules.  
 Since Network deals in continuous voltages rather than discrete midi notes, the "Reuse" mode of those modules does not apply.  
