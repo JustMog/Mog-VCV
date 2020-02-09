@@ -8,9 +8,8 @@ Mog's modules for VCV Rack
 
 Network is a "node-based" polyphonic sequencer consisting of 16 identical nodes.
 
-When a node receives a trigger at either of its two inputs, it cycles between relaying that trigger first to the main gate output and then to each of the node's four outputs in turn.  
-When a node relays a trigger to the main gate out, the value of the node's knob is sent to the main CV out.  
-Node outputs that are disconnected are skipped.
+When a node first receives a trigger at either of its two inputs, it sends the node's value (set by the knob) to the main cv out, and relays the trigger to the main gate out.  
+Subsequent triggers are relayed to each of the nodes connected outputs in turn, then the cycle repeats.
 
 You can generate a repeating sequence by connecting nodes together.
 
@@ -23,10 +22,18 @@ Since Network deals in continuous voltages rather than discrete midi notes, the 
 Instead, Network has "Fixed", in which each of the 16 nodes gets its own channel.
 
 **Advanced features:**  
-Nodes 1 and 9 can be "bypassed" with the buttons next to them.  
-When in bypass mode, a node will still relay to the node outputs as normal, but will skip outputting its own value to the main cv output and relaying to the main gate output.
+Rests can be inserted into the sequence by connecting a node output to something other than another node.
+If in doubt, the SS-112 input sinks module by Submarine is a good choice.
+
+Node inputs accept polyphonic signals for a total of 32 possible trigger sources per node.
+
+Nodes 1 and 9 can be "bypassed" with their adjacent buttons.
+When in bypass mode, a node will still relay to the node outputs as normal, but will skip outputting to the main cv and gate outputs.
+
+CV Attenuversion scales the voltage range of all channels of the main CV out.
+The input will override the knob and uses the 1v/Octave standard.
 
 Though Network will work just fine when sent triggers, it actually takes and relays any input signal, triggering when the input exceeds a threshold of 0.00001v.
-When relaying input signals, the maximum value of the two inputs is relayed.
+When relaying input signals, the maximum value is relayed.
 
 Finding creative uses for this is left up to the reader.

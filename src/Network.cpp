@@ -3,12 +3,9 @@
 
 #define PI 3.14159265
 
-//polyphic inputs! 
-//pulse mode?
 //attenuvert input + knob add instead of override? different scaling?
 //changeable skins (light / dark)
 //expansions??
-
 
 enum PolyMode {
     ROTATE_MODE,
@@ -56,7 +53,7 @@ struct OutputRouter{
 	}
 	void setChannels(int n){
 		channels = n;
-		if(polyMode == ROTATE_MODE && rotateIndex < channels -1) rotateIndex = -1;
+		if(polyMode == ROTATE_MODE && rotateIndex > channels -1) rotateIndex = -1;
 	}
 
     int assignChannel(int node){
@@ -119,15 +116,13 @@ struct Node{
     int id;
     int state = -1;
     bool bypass = false;
+	const float TRIG_THRESHOLD = 0;//0.00001;
 
-	const float LIGHT_FADE = 2;
-	const float TRIG_THRESHOLD = 0.00001;
-
-    float inputsPrev[NODE_NUM_INS];
+    float inputsPrev[NODE_NUM_INS][16];
     int toChannel = 0;
     Output* relayTo = nullptr;
     OutputRouter* outputRouter;
-    dsp::SchmittTrigger bypassTrigger;
+
     
     void init(int _id, Param* _knob, Light* _light, Input* _input, Output* _output, OutputRouter* _out, Param* _bypassBtn = nullptr){
         id = _id;
@@ -148,6 +143,10 @@ struct Node{
         return (output1+n);
     }
 
+	bool isBypass(){
+		return bypassBtn != nullptr && bypassBtn->getValue();
+	}
+
     void closeRelay(){   
         if(relayTo == outputRouter->gateOut){
             outputRouter->channelOccupied[toChannel] = false;
@@ -161,26 +160,29 @@ struct Node{
     }
 
     void process(float dt){
-        if(bypassBtn != nullptr && bypassTrigger.process(bypassBtn->getValue())){
-            bypass =! bypass;
-            if(bypass) closeRelay();
-        }
-		light->setBrightness(light->getBrightness()-LIGHT_FADE*dt);
-    
+
+		bool doTrigger = false;
         float maxVoltage = -1;
         for (int in = 0; in < NODE_NUM_INS; in++){
-
-            float newVal = getInput(in)->getVoltage();
-            if(newVal > maxVoltage) maxVoltage = newVal;
-            
-            if(inputsPrev[in] <= TRIG_THRESHOLD && newVal > TRIG_THRESHOLD){
-                trigger();                                       
-            }
-            inputsPrev[in] = newVal;
-
+			for (int ch = 0; ch < 16; ch++){
+				float newVal = getInput(in)->getVoltage(ch);
+				if(newVal > maxVoltage) maxVoltage = newVal;
+				
+				if(inputsPrev[in][ch] <= TRIG_THRESHOLD && newVal > TRIG_THRESHOLD){
+					doTrigger = true;                                    
+				}
+				inputsPrev[in][ch] = newVal;
+			}
         }
+		if(doTrigger) trigger();  
 
-        if (relayTo != nullptr){
+		//light
+		if(relayTo == outputRouter->gateOut)
+			light->setSmoothBrightness(maxVoltage/10, dt);
+		else 
+			light->setSmoothBrightness(0.f, dt);
+        
+		if (relayTo != nullptr){
 
             if(maxVoltage <= 0){
                 closeRelay();
@@ -189,7 +191,6 @@ struct Node{
                 relayTo->setVoltage(maxVoltage, toChannel);
 
                 if(relayTo == outputRouter->gateOut){
-					light->setBrightness(std::max(maxVoltage/10.f, light->getBrightness()-LIGHT_FADE*dt));
 					float out = knob->getValue();
 					out = rescale(out, 0.f, 1.f, outputRouter->cvMin, outputRouter->cvMax);
                     outputRouter->cvOut->setVoltage(out, toChannel);
@@ -209,7 +210,7 @@ struct Node{
 
         for(int i = 0; i < NODE_NUM_OUTS + 1; i++){
             if(state == -1){
-                if(not bypass){
+                if(not isBypass()){
                     relayTo = outputRouter->gateOut;
                     toChannel = outputRouter->assignChannel(id);                   
                     
@@ -230,7 +231,6 @@ struct Node{
         state = -1;
     }
 };
-
 
 
 struct Network : Module {
@@ -263,6 +263,7 @@ struct Network : Module {
     OutputRouter outputRouter;
 
     dsp::SchmittTrigger resetTriggers[6];
+	dsp::BooleanTrigger resetBtnTrigger;
 
     Network() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);		
@@ -293,7 +294,8 @@ struct Network : Module {
 
     void process(const ProcessArgs& args) override {
         for(int i = 0; i < 6; i++)		
-			if(params[RESET_PARAM].getValue() or resetTriggers[i].process(inputs[RESET_INPUT+i].getVoltage())){
+			if(resetBtnTrigger.process(params[RESET_PARAM].getValue()) 
+			or resetTriggers[i].process(inputs[RESET_INPUT+i].getVoltage())){
 				for(int node = 0; node < 16; node++)
 					nodes[node].reset();
 			}
@@ -301,7 +303,7 @@ struct Network : Module {
         outputRouter.process(
 			params[BIPOLAR_PARAM].getValue() > 0.f,
 			inputs[ATTENUVERSION_INPUT].isConnected() ?
-			inputs[ATTENUVERSION_INPUT].getVoltage() :
+			inputs[ATTENUVERSION_INPUT].getVoltage()/10 :
 			params[ATTENUVERSION_PARAM].getValue()
 		);
         
@@ -446,7 +448,7 @@ struct NetworkWidget : ModuleWidget {
 				if( j == 0 && i % 2 == 0){
 					x = cos(PI*2/6)*dist*2;
 					y = sin(PI*2/6)*dist*2;
-					addParam(createParamCentered<PushButtonMomentaryLarge>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_PARAM+bypassesDone++));
+					addParam(createParamCentered<PushButtonLarge>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_PARAM+bypassesDone++));
 				}
 				nodesDone++;
 			}
@@ -478,11 +480,11 @@ struct NetworkWidget : ModuleWidget {
 
 		if (module) {
 			for(int node = 0; node < 4*4; node++){
-				if(module->nodes[node].bypass){
-					knobLights[node]->bgColor = nvgRGB(0x50,0x00,0x00); 	
+				if(module->nodes[node].isBypass()){
+					knobLights[node]->bgColor = nvgRGB(0x10,0x00,0x00); 	
 				}
 				else{ 
-					knobLights[node]->bgColor = nvgRGB(0x20, 0x20, 0x20);
+					knobLights[node]->bgColor = nvgRGB(0x3B, 0x3B, 0x3B);
 				}
 			}
 		}

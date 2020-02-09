@@ -1,6 +1,6 @@
 {
   "slug": "Mog",
-  "name": "MogsModules",
+  "name": "Mog",
   "version": "1.0.0",
   "license": "cc0-0.1",
   "brand": "Mog",
@@ -20,7 +20,8 @@
       "tags": [
         "Sequencer",
         "Polyphonic"
-      ]
+      ],
+      "manualUrl": "https://github.com/JustMog/Mog-VCV/#network"
     }
   ]
 }
