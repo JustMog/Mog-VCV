@@ -16,97 +16,10 @@ enum PolyMode {
     NUM_POLY_MODES
 };
 
-struct OutputRouter{
-    int channels = 16;
-    bool channelOccupied[16];
-    
-    PolyMode polyMode = RESET_MODE;
-    int rotateIndex = -1;
-
-    Output* cvOut;
-    Output* gateOut;
-
-	float cvMin = 0;
-	float cvMax = 10;
-
-    void init(Output* cv, Output* gate){
-        cvOut = cv;
-        gateOut = gate;
-        for(int i = 0; i < 16; i++) channelOccupied[i] = false;
-    }
-
-    void process(bool bipolar, float attenuversion){
-        cvOut->setChannels(channels);
-		gateOut->setChannels(channels);
-
-		if(bipolar){
-			cvMin = -5*attenuversion;
-			cvMax = 5*attenuversion;
-		}
-		else{
-			cvMin = 0;
-			cvMax = 10*attenuversion;
-		}
-    }
-
-   	void setPolyMode(PolyMode mode){
-		polyMode = mode;
-		rotateIndex = -1;
-	}
-	void setChannels(int n){
-		channels = n;
-		if(polyMode == ROTATE_MODE && rotateIndex > channels -1) rotateIndex = -1;
-	}
-
-    int assignChannel(int node){
-        int c = getFreeChannel(node);
-        channelOccupied[c] = true;
-        return c;
-    }
-
-    int getFreeChannel(int node) {	
-        if (channels == 1)
-			return 0;
-
-		switch (polyMode) {
-
-			case ROTATE_MODE: {
-				// Find next available channel
-				for (int i = 0; i < channels; i++) {
-					rotateIndex++;
-					if (rotateIndex >= channels)
-						rotateIndex = 0;
-					if (not channelOccupied[rotateIndex])
-						return rotateIndex;
-				}
-				// No notes are available. Advance rotateIndex once more.
-				rotateIndex++;
-				if (rotateIndex >= channels)
-					rotateIndex = 0;
-				return rotateIndex;
-			} break;
-
-			case RESET_MODE: {
-				for (int c = 0; c < channels; c++) {
-					if (not channelOccupied[c])
-						return c;
-				}
-				return channels - 1;
-			} break;
-
-			case FIXED_MODE: {
-				return node;
-			} break;
-
-			default: return 0;
-		}
-	}
-
-};
-
 const int NODE_NUM_INS = 2;
 const int NODE_NUM_OUTS = 4;
 
+struct OutputRouter;
 
 struct Node{
     Param* knob;
@@ -121,9 +34,10 @@ struct Node{
 	const float TRIG_THRESHOLD = 0;//0.00001;
 
     float inputsPrev[NODE_NUM_INS][16];
-    int toChannel = 0;
     Output* relayTo = nullptr;
     OutputRouter* outputRouter;
+	float maxInVoltage;
+	float lightBrightness = 0.f;
 
     
     void init(int _id, Param* _knob, Light* _light, Input* _input, Output* _output, OutputRouter* _out, Param* _bypassBtn = nullptr){
@@ -149,26 +63,24 @@ struct Node{
 		return bypassBtn != nullptr && bypassBtn->getValue();
 	}
 
-    void closeRelay(){   
-        if(relayTo == outputRouter->gateOut){
-            outputRouter->channelOccupied[toChannel] = false;
-        }
-        
+    void closeRelay(){          
         if(relayTo != nullptr)
-            relayTo->setVoltage(0.f, toChannel);  
+            relayTo->setVoltage(0.f);  
         relayTo = nullptr;
-        
-        toChannel = 0;
     }
 
     void process(float dt){
 
+		light->setSmoothBrightness(lightBrightness, dt);
+
 		bool doTrigger = false;
-        float maxVoltage = -1;
-        for (int in = 0; in < NODE_NUM_INS; in++){
+        maxInVoltage = -1;
+        
+		for (int in = 0; in < NODE_NUM_INS; in++){
 			for (int ch = 0; ch < 16; ch++){
+				
 				float newVal = getInput(in)->getVoltage(ch);
-				if(newVal > maxVoltage) maxVoltage = newVal;
+				if(newVal > maxInVoltage) maxInVoltage = newVal;
 				
 				if(inputsPrev[in][ch] <= TRIG_THRESHOLD && newVal > TRIG_THRESHOLD){
 					doTrigger = true;                                    
@@ -177,27 +89,12 @@ struct Node{
 			}
         }
 		if(doTrigger) trigger();  
-
-		//light
-		if(relayTo == outputRouter->gateOut)
-			light->setSmoothBrightness(maxVoltage/10, dt);
-		else 
-			light->setSmoothBrightness(0.f, dt);
         
 		if (relayTo != nullptr){
-
-            if(maxVoltage <= 0){
+            if(maxInVoltage <= 0)
                 closeRelay();
-            }
-            else{
-                relayTo->setVoltage(maxVoltage, toChannel);
-
-                if(relayTo == outputRouter->gateOut){
-					float out = knob->getValue();
-					out = rescale(out, 0.f, 1.f, outputRouter->cvMin, outputRouter->cvMax);
-                    outputRouter->cvOut->setVoltage(out, toChannel);
-                }
-            }
+            else
+                relayTo->setVoltage(maxInVoltage);
         }
 
     }
@@ -209,13 +106,12 @@ struct Node{
     
     void trigger(){
         closeRelay();
+		stop();
 
         for(int i = 0; i < NODE_NUM_OUTS + 1; i++){
             if(state == -1){
                 if(not isBypass()){
-                    relayTo = outputRouter->gateOut;
-                    toChannel = outputRouter->assignChannel(id);                   
-                    
+					play();
                     advanceState();
                     return;
                 }
@@ -229,11 +125,142 @@ struct Node{
         }
     }
 
+	void play();
+
+	void stop();
+
     void reset(){
         state = -1;
     }
+
 };
 
+struct OutputRouter{
+    int numChannels = 16;
+    Node* channels[16];
+    
+    PolyMode polyMode = RESET_MODE;
+    int rotateIndex = -1;
+
+    Output* cvOut;
+    Output* gateOut;
+
+	float cvMin = 0;
+	float cvMax = 10;
+
+    void init(Output* cv, Output* gate){
+        cvOut = cv;
+        gateOut = gate;
+        for(int i = 0; i < 16; i++) channels[i] = nullptr;
+    }
+
+    void process(bool bipolar, float attenuversion){
+        cvOut->setChannels(numChannels);
+		gateOut->setChannels(numChannels);
+
+		if(bipolar){
+			cvMin = -5*attenuversion;
+			cvMax = 5*attenuversion;
+		}
+		else{
+			cvMin = 0;
+			cvMax = 10*attenuversion;
+		}
+		
+		for(int ch = 0; ch < numChannels; ch++){
+			if(channels[ch] != nullptr){
+				Node* node = channels[ch];
+				if(node->maxInVoltage <= 0)
+					closeChannel(ch);
+				else{
+					float out = node->knob->getValue();
+					out = rescale(out, 0.f, 1.f, cvMin, cvMax);
+					cvOut->setVoltage(out, ch);
+					gateOut->setVoltage(node->maxInVoltage, ch);
+					node->lightBrightness = node->maxInVoltage/10;
+				}
+			}
+		}
+
+    }
+
+   	void setPolyMode(PolyMode mode){
+		polyMode = mode;
+		rotateIndex = -1;
+	}
+	void setChannels(int n){
+		numChannels = n;
+		for(int i = n; i < 16; i++) closeChannel(i);
+
+		if(polyMode == ROTATE_MODE && rotateIndex > numChannels -1) rotateIndex = -1;
+	}
+
+    void playNode(Node* node){
+        int c = getChannel(node);
+		closeChannel(c);
+        channels[c] = node;
+    }
+
+	void stopNode(Node* node){
+		for(int ch = 0; ch < 16; ch++)
+			if(channels[ch] == node) closeChannel(ch);
+	}
+
+	int getChannel(Node* node) {	
+        if (numChannels == 1)
+			return 0;
+
+		switch (polyMode) {
+
+			case ROTATE_MODE: {
+				// Find next available channel
+				for (int i = 0; i < numChannels; i++) {
+					rotateIndex++;
+					if (rotateIndex >= numChannels)
+						rotateIndex = 0;
+					if (channels[rotateIndex] == nullptr)
+						return rotateIndex;
+				}
+				// No notes are available. Advance rotateIndex once more.
+				rotateIndex++;
+				if (rotateIndex >= numChannels)
+					rotateIndex = 0;
+				return rotateIndex;
+			} break;
+
+			case RESET_MODE: {
+				for (int c = 0; c < numChannels; c++) {
+					if (channels[c] == nullptr)
+						return c;
+				}
+				return numChannels - 1;
+			} break;
+
+			case FIXED_MODE: {
+				return node->id;
+			} break;
+
+			default: return 0;
+		}
+	}
+
+	void closeChannel(int ch){
+		gateOut->setVoltage(0.f, ch);
+		if(channels[ch] != nullptr) 
+			channels[ch]->lightBrightness = 0.f;
+		channels[ch] = nullptr;
+	}
+
+
+};
+
+inline void Node::play(){
+	outputRouter->playNode(this);
+}
+
+inline void Node::stop(){
+	outputRouter->stopNode(this);
+}
 
 struct Network : Module {
 	enum ParamIds {
@@ -280,12 +307,12 @@ struct Network : Module {
         
 		int bypass = 0;
 		for(int i = 0; i < 4*4; i++){
-            configParam(VAL_PARAM + i, 0.f, 1.f, 0.5f, "");		
+            configParam(VAL_PARAM + i, 0.f, 1.f, 0.5f, string::f("Node %d", i+1));		
             nodes[i].init(i, 
                 &params[VAL_PARAM+i], 
                 &lights[TRIG_LIGHT+i], 
-                &inputs[TRIG_INPUT+(i*2)], 
-                &outputs[TRIG_OUTPUT+(i*4)], 
+                &inputs[TRIG_INPUT+(i*NODE_NUM_INS)], 
+                &outputs[TRIG_OUTPUT+(i*NODE_NUM_OUTS)], 
                 &outputRouter,
 				(i == 0 or i == 8) ? &params[BYPASS_PARAM+bypass++] : nullptr
             );
@@ -316,7 +343,7 @@ struct Network : Module {
 
 	json_t* dataToJson() override {
 		json_t* rootJ = json_object();
-		json_object_set_new(rootJ, "channels", json_integer(outputRouter.channels));
+		json_object_set_new(rootJ, "channels", json_integer(outputRouter.numChannels));
 		json_object_set_new(rootJ, "polyMode", json_integer(outputRouter.polyMode));
 
 		json_t *nodeStatesJ = json_array();
@@ -371,7 +398,7 @@ struct ChannelItem : MenuItem {
 				item->text = "Monophonic";
 			else
 				item->text = string::f("%d", channels);
-			item->rightText = CHECKMARK(module->outputRouter.channels == channels);
+			item->rightText = CHECKMARK(module->outputRouter.numChannels == channels);
 			item->module = module;
 			item->channels = channels;
 			menu->addChild(item);
@@ -518,7 +545,7 @@ struct NetworkWidget : ModuleWidget {
 
 		ChannelItem* channelItem = new ChannelItem;
 		channelItem->text = "Polyphony channels";
-		channelItem->rightText = string::f("%d", module->outputRouter.channels) + "  " + RIGHT_ARROW;
+		channelItem->rightText = string::f("%d", module->outputRouter.numChannels) + "  " + RIGHT_ARROW;
 		channelItem->module = module;
 		menu->addChild(channelItem);
 

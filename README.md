@@ -36,5 +36,5 @@ When in bypass mode, a node will still relay to the node outputs as normal, but 
 CV Attenuversion scales the voltage range of all channels of the main CV out.
 The input will override the knob and uses the 1v/Octave standard.
 
-Though Network will work just fine when sent triggers, it actually takes and relays any input signal, triggering when the input exceeds a threshold of 0.00001v.
+Though Network will work just fine when sent triggers, it actually takes and relays any input signal, triggering when the input exceeds 0 volts.
 When relaying input signals, the maximum value is relayed.
