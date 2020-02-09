@@ -43,7 +43,6 @@ struct RockerSwitchVertical: SvgSwitch {
 	}
 };
 
-
 struct RoundJackOut : SVGPort {
 	RoundJackOut() {
 		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/socket_round_dark.svg")));

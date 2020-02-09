@@ -4,13 +4,10 @@
 #define PI 3.14159265
 
 //TODO:
-//----------------
-//low priority:
-
-//attenuvert input + knob add instead of override? 
+//update manual images
+//attenuvert input + knob add instead of override? different scaling?
 //changeable skins (light / dark)
 //expansions??
-//----------------
 
 enum PolyMode {
     ROTATE_MODE,
@@ -19,30 +16,119 @@ enum PolyMode {
     NUM_POLY_MODES
 };
 
-#define NODE_NUM_INS 2
-#define NODE_NUM_OUTS 4
+struct OutputRouter{
+    int channels = 16;
+    bool channelOccupied[16];
+    
+    PolyMode polyMode = RESET_MODE;
+    int rotateIndex = -1;
 
-struct OutputRouter;
+    Output* cvOut;
+    Output* gateOut;
+
+	float cvMin = 0;
+	float cvMax = 10;
+
+    void init(Output* cv, Output* gate){
+        cvOut = cv;
+        gateOut = gate;
+        for(int i = 0; i < 16; i++) channelOccupied[i] = false;
+    }
+
+    void process(bool bipolar, float attenuversion){
+        cvOut->setChannels(channels);
+		gateOut->setChannels(channels);
+
+		if(bipolar){
+			cvMin = -5*attenuversion;
+			cvMax = 5*attenuversion;
+		}
+		else{
+			cvMin = 0;
+			cvMax = 10*attenuversion;
+		}
+    }
+
+   	void setPolyMode(PolyMode mode){
+		polyMode = mode;
+		rotateIndex = -1;
+	}
+	void setChannels(int n){
+		channels = n;
+		if(polyMode == ROTATE_MODE && rotateIndex > channels -1) rotateIndex = -1;
+	}
+
+    int assignChannel(int node){
+        int c = getFreeChannel(node);
+        channelOccupied[c] = true;
+        return c;
+    }
+
+    int getFreeChannel(int node) {	
+        if (channels == 1)
+			return 0;
+
+		switch (polyMode) {
+
+			case ROTATE_MODE: {
+				// Find next available channel
+				for (int i = 0; i < channels; i++) {
+					rotateIndex++;
+					if (rotateIndex >= channels)
+						rotateIndex = 0;
+					if (not channelOccupied[rotateIndex])
+						return rotateIndex;
+				}
+				// No notes are available. Advance rotateIndex once more.
+				rotateIndex++;
+				if (rotateIndex >= channels)
+					rotateIndex = 0;
+				return rotateIndex;
+			} break;
+
+			case RESET_MODE: {
+				for (int c = 0; c < channels; c++) {
+					if (not channelOccupied[c])
+						return c;
+				}
+				return channels - 1;
+			} break;
+
+			case FIXED_MODE: {
+				return node;
+			} break;
+
+			default: return 0;
+		}
+	}
+
+};
+
+const int NODE_NUM_INS = 2;
+const int NODE_NUM_OUTS = 4;
+
 
 struct Node{
-
     Param* knob;
     Light* light;
     Input* input1;
     Output* output1;
     Param* bypassBtn;
-	dsp::PulseGenerator outPulses[NODE_NUM_OUTS];
-	dsp::SchmittTrigger inTriggers[NODE_NUM_INS][16];
 
     int id;
-	int state = -1;
-	float lightBrightness = 0.f;
+    int state = -1;
+    bool bypass = false;
+	const float TRIG_THRESHOLD = 0;//0.00001;
 
-    OutputRouter* outputRouter;   
+    float inputsPrev[NODE_NUM_INS][16];
+    int toChannel = 0;
+    Output* relayTo = nullptr;
+    OutputRouter* outputRouter;
+
     
     void init(int _id, Param* _knob, Light* _light, Input* _input, Output* _output, OutputRouter* _out, Param* _bypassBtn = nullptr){
-		id = _id;
-		knob = _knob;
+        id = _id;
+        knob = _knob;
         light = _light;
         input1 = _input;
         output1 = _output;
@@ -59,45 +145,83 @@ struct Node{
         return (output1+n);
     }
 
-    void process(float dt){
-        //light
-		light->setSmoothBrightness(lightBrightness, dt);
-		
-		//send pulse outputs
-		for(int out = 0; out < NODE_NUM_OUTS; out++){
-			getOutput(out)->setVoltage(outPulses[out].process(dt)*10.f);
-		}
+	bool isBypass(){
+		return bypassBtn != nullptr && bypassBtn->getValue();
+	}
 
-		//trigger on inputs
-		bool triggered = false;
-		for(int in = 0; in < NODE_NUM_INS; in++)
-			for(int ch = 0; ch < getInput(in)->getChannels(); ch++)
-				if(inTriggers[in][ch].process(getInput(in)->getVoltage(ch)))
-					triggered = true; 		
-
-		if(triggered) trigger();
-		
+    void closeRelay(){   
+        if(relayTo == outputRouter->gateOut){
+            outputRouter->channelOccupied[toChannel] = false;
+        }
+        
+        if(relayTo != nullptr)
+            relayTo->setVoltage(0.f, toChannel);  
+        relayTo = nullptr;
+        
+        toChannel = 0;
     }
 
+    void process(float dt){
+
+		bool doTrigger = false;
+        float maxVoltage = -1;
+        for (int in = 0; in < NODE_NUM_INS; in++){
+			for (int ch = 0; ch < 16; ch++){
+				float newVal = getInput(in)->getVoltage(ch);
+				if(newVal > maxVoltage) maxVoltage = newVal;
+				
+				if(inputsPrev[in][ch] <= TRIG_THRESHOLD && newVal > TRIG_THRESHOLD){
+					doTrigger = true;                                    
+				}
+				inputsPrev[in][ch] = newVal;
+			}
+        }
+		if(doTrigger) trigger();  
+
+		//light
+		if(relayTo == outputRouter->gateOut)
+			light->setSmoothBrightness(maxVoltage/10, dt);
+		else 
+			light->setSmoothBrightness(0.f, dt);
+        
+		if (relayTo != nullptr){
+
+            if(maxVoltage <= 0){
+                closeRelay();
+            }
+            else{
+                relayTo->setVoltage(maxVoltage, toChannel);
+
+                if(relayTo == outputRouter->gateOut){
+					float out = knob->getValue();
+					out = rescale(out, 0.f, 1.f, outputRouter->cvMin, outputRouter->cvMax);
+                    outputRouter->cvOut->setVoltage(out, toChannel);
+                }
+            }
+        }
+
+    }
 
     void advanceState(){
         state++;
         if(state >= NODE_NUM_OUTS) state = -1;
     }
-
+    
     void trigger(){
+        closeRelay();
 
         for(int i = 0; i < NODE_NUM_OUTS + 1; i++){
             if(state == -1){
-                if(bypassBtn == nullptr or not bypassBtn->getValue()){		
-					play();
+                if(not isBypass()){
+                    relayTo = outputRouter->gateOut;
+                    toChannel = outputRouter->assignChannel(id);                   
+                    
                     advanceState();
                     return;
                 }
             }
             else if(getOutput(state)->isConnected()){
-
-				outPulses[state].trigger(1e-3f);//trigger length recommended by vcv voltage standards
+                relayTo = getOutput(state);
                 advanceState();
                 return; 
             }
@@ -108,194 +232,8 @@ struct Node{
     void reset(){
         state = -1;
     }
-
-	void play(); 
-
 };
 
-struct OutputRouter{
-    int numChannels = 1;
-    Node* channels[16];
-    
-    PolyMode polyMode = FIXED_MODE;
-    int rotateIndex = -1;
-
-	Param* bipolar;
-	Param* attenuversionParam;
-	Input* attenuversionInput;
-
-	Param* gateLenParam;
-	Input* gateLenInput;	
-	dsp::PulseGenerator gatePulses[16];
-	dsp::PulseGenerator retrigPulses[16];
-
-    Output* cvOut;
-    Output* gateOut;
-	Output* retrigOut;
-
-    void init(	
-		Param* _bipolar,
-		Param* _attenuversionParam,
-		Input* _attenuversionInput,
-
-		Param* _gateLenParam,
-		Input* _gateLenInput,	
-
-		Output* _cvOut,
-		Output* _gateOut,
-		Output* _retrigOut
-	){
-		bipolar = _bipolar;
-		attenuversionParam = _attenuversionParam;
-		attenuversionInput = _attenuversionInput;
-
-		gateLenParam =  _gateLenParam;
-		gateLenInput =  _gateLenInput;
-
-        cvOut = _cvOut;
-        gateOut = _gateOut;
-		retrigOut = _retrigOut;
-
-		for(int i = 0; i < 16; i++) channels[i] = nullptr;
-
-    }
-
-	void setPolyMode(PolyMode mode){
-		polyMode = mode;
-		rotateIndex = -1;
-	}
-
-	void setChannels(int n){
-		numChannels = n;
-		cvOut->setChannels(numChannels);
-		gateOut->setChannels(numChannels);
-		retrigOut->setChannels(numChannels);
-		
-		if(polyMode == ROTATE_MODE && rotateIndex >= numChannels) rotateIndex = -1;
-		
-		for(int ch = numChannels; ch < 16; ch++){
-			clearChannel(ch);
-		}
-	}
-
-
-    void process(float dt){
-		
-		//have to do it here because of reasons
-		cvOut->setChannels(numChannels);
-		gateOut->setChannels(numChannels);
-		retrigOut->setChannels(numChannels);	
-
-		float attenuversion = attenuversionInput->isConnected() ? 
-			attenuversionInput->getVoltage()/10 :
-			attenuversionParam->getValue();
-		
-		float cvMin, cvMax;
-		if(bipolar->getValue()){
-			cvMin = -5*attenuversion;
-			cvMax =  5*attenuversion;
-		}
-		else{
-			cvMin = 0;
-			cvMax = 10*attenuversion;
-		}
-		
-
-		for(int ch = 0; ch < numChannels; ch++){
-
-			retrigOut->setVoltage(retrigPulses[ch].process(dt) * 10.f, ch);
-	
-			if(gatePulses[ch].process(dt)){
-				float out = channels[ch]->knob->getValue();
-				out = rescale(out, 0.f, 1.f, cvMin, cvMax);
-				cvOut->setVoltage(out, ch);
-			}
-			else clearChannel(ch);	
-
-		}
-
-    }
-
-	void clearChannel(int c){
-		if(channels[c] != nullptr)
-			channels[c]->lightBrightness = 0.f;
-		gateOut->setVoltage(0.f, c);	
-		gatePulses[c].reset();
-		channels[c] = nullptr;
-	}
-
-	void playNode(Node* node){
-		for(int ch = 0; ch < numChannels; ch++){
-			if(channels[ch] == node) clearChannel(ch);
-		}
-		int ch = getChannel(node);
-		clearChannel(ch);
-
-		channels[ch] = node;
-		retrigPulses[ch].trigger(1e-3f);
-		gateOut->setVoltage(10.f, ch);
-		gatePulses[ch].trigger(channelGetGateLen(ch));
-		node->lightBrightness = 1.f;
-
-	}
-
-
-    int getChannel(Node* node) {	
-        if (numChannels == 1)
-			return 0;
-
-		switch (polyMode) {
-
-			case ROTATE_MODE: {
-				// Find next available channel
-				for (int i = 0; i < numChannels; i++) {
-					rotateIndex++;
-					if (rotateIndex >= numChannels)
-						rotateIndex = 0;
-					if (channels[rotateIndex] == nullptr)
-						return rotateIndex;
-				}
-				// No notes are available. Advance rotateIndex once more.
-				rotateIndex++;
-				if (rotateIndex >= numChannels)
-					rotateIndex = 0;
-				return rotateIndex;
-			} break;
-
-			case RESET_MODE: {
-				for (int c = 0; c < numChannels; c++) {
-					if (channels[c] == nullptr)
-						return c;
-				}
-				return numChannels - 1;
-			} break;
-
-			case FIXED_MODE: {
-				return node->id;
-			} break;
-
-			default: return 0;
-		}
-	}
-
-	float channelGetGateLen(int ch){
-		float res = pow(11.f, gateLenParam->getValue()) -1;
-		
-		if(gateLenInput->getChannels() == 1)
-			res *= gateLenInput->getVoltage()/10;	
-		else if(ch < gateLenInput->getChannels())
-			res *= gateLenInput->getVoltage(ch)/10;
-		
-		res = std::max(res, 0.f);
-		return res;
-	}
-
-
-};
-
-inline void Node::play(){
-	outputRouter->playNode(this);
-}
 
 struct Network : Module {
 	enum ParamIds {
@@ -303,14 +241,12 @@ struct Network : Module {
 		ENUMS(BYPASS_PARAM, 2),
 		ATTENUVERSION_PARAM,
 		BIPOLAR_PARAM,
-		GATE_LEN_PARAM,
         RESET_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
 		ENUMS(TRIG_INPUT, NODE_NUM_INS * 4 * 4),
 		ATTENUVERSION_INPUT,
-		GATE_LEN_INPUT,
         ENUMS(RESET_INPUT,6),
 		NUM_INPUTS
 	};
@@ -318,8 +254,6 @@ struct Network : Module {
 		ENUMS(TRIG_OUTPUT, NODE_NUM_OUTS * 4 * 4),
 		CV_OUTPUT,
 		GATE_OUTPUT,
-		RETRIG_OUTPUT,
-		//DEBUG_OUTPUT,
 		NUM_OUTPUTS
 	};
 	enum LightIds {
@@ -331,38 +265,27 @@ struct Network : Module {
     OutputRouter outputRouter;
 
     dsp::SchmittTrigger resetTriggers[6];
+	dsp::BooleanTrigger resetBtnTrigger;
 
     Network() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);		
         
-		configParam(ATTENUVERSION_PARAM, -1.f, 1.f, 0.8f, "CV Attenuversion", "%", 0, 100);
-        configParam(BIPOLAR_PARAM, 0.f, 1.f, 1.f, "CV Bipolar");
-		configParam(GATE_LEN_PARAM, 0.f, 1.f, 0.169092083673438f, "Gate Length", "s", 11.f, 1.f, -1.f);//10.f, 10.f/9.f, -(10.f/9.f));	
-
+		configParam(ATTENUVERSION_PARAM, -1.f, 1.f, 0.4f, "CV Attenuversion", "%", 0, 100);
+        configParam(BIPOLAR_PARAM, 0.f, 1.f, 1.f, "CV Bipolar");		
         configParam(RESET_PARAM, 0.f, 1.f, 0.f, "Reset");	
 		configParam(BYPASS_PARAM, 0.f, 1.f, 0.f, "Bypass");	
 		configParam(BYPASS_PARAM+1, 0.f, 1.f, 0.f, "Bypass");	
        
-	    outputRouter.init(
-			&params[BIPOLAR_PARAM],
-			&params[ATTENUVERSION_PARAM],
-			&inputs[ATTENUVERSION_INPUT],
-			&params[GATE_LEN_PARAM],
-			&inputs[GATE_LEN_INPUT],
-			&outputs[CV_OUTPUT], 
-			&outputs[GATE_OUTPUT], 
-			&outputs[RETRIG_OUTPUT]
-		);
+	    outputRouter.init(&outputs[CV_OUTPUT], &outputs[GATE_OUTPUT]);
         
 		int bypass = 0;
 		for(int i = 0; i < 4*4; i++){
             configParam(VAL_PARAM + i, 0.f, 1.f, 0.5f, "");		
-            nodes[i].init(
-				i, 
+            nodes[i].init(i, 
                 &params[VAL_PARAM+i], 
                 &lights[TRIG_LIGHT+i], 
-                &inputs[TRIG_INPUT+(i*NODE_NUM_INS)], 
-                &outputs[TRIG_OUTPUT+(i*NODE_NUM_OUTS)], 
+                &inputs[TRIG_INPUT+(i*2)], 
+                &outputs[TRIG_OUTPUT+(i*4)], 
                 &outputRouter,
 				(i == 0 or i == 8) ? &params[BYPASS_PARAM+bypass++] : nullptr
             );
@@ -372,25 +295,36 @@ struct Network : Module {
     }
 
     void process(const ProcessArgs& args) override {
-        //reset
-		for(int i = 0; i < 6; i++)		
-			if(params[RESET_PARAM].getValue() or resetTriggers[i].process(inputs[RESET_INPUT+i].getVoltage())){
+        for(int i = 0; i < 6; i++)		
+			if(resetBtnTrigger.process(params[RESET_PARAM].getValue()) 
+			or resetTriggers[i].process(inputs[RESET_INPUT+i].getVoltage())){
 				for(int node = 0; node < 16; node++)
 					nodes[node].reset();
 			}
 
-		for(int node = 0; node < 4*4; node++){			
+        outputRouter.process(
+			params[BIPOLAR_PARAM].getValue() > 0.f,
+			inputs[ATTENUVERSION_INPUT].isConnected() ?
+			inputs[ATTENUVERSION_INPUT].getVoltage()/10 :
+			params[ATTENUVERSION_PARAM].getValue()
+		);
+        
+        for(int node = 0; node < 4*4; node++){			
             nodes[node].process(args.sampleTime);
         }
-
-        outputRouter.process(args.sampleTime);
-        
     }
 
 	json_t* dataToJson() override {
 		json_t* rootJ = json_object();
-		json_object_set_new(rootJ, "channels", json_integer(outputRouter.numChannels));
+		json_object_set_new(rootJ, "channels", json_integer(outputRouter.channels));
 		json_object_set_new(rootJ, "polyMode", json_integer(outputRouter.polyMode));
+
+		json_t *nodeStatesJ = json_array();
+		for (int node = 0; node < 16; node++) {
+			json_t *nodeStateJ = json_integer((int) nodes[node].state);
+			json_array_append_new(nodeStatesJ, nodeStateJ);
+		}
+		json_object_set_new(rootJ, "nodeStates", nodeStatesJ);
 
 		return rootJ;
 	}
@@ -404,7 +338,17 @@ struct Network : Module {
 		if (polyModeJ)
 			outputRouter.setPolyMode((PolyMode) json_integer_value(polyModeJ));
 		
+		json_t *nodeStatesJ = json_object_get(rootJ, "nodeStates");
+		if (nodeStatesJ) {
+			for (int node = 0; node < 16; node++) {
+				json_t *nodeStateJ = json_array_get(nodeStatesJ, node);
+				if (nodeStateJ)
+					nodes[node].state = json_integer_value(nodeStateJ);
+			}
+		}
 	}
+
+	
 
 };
 
@@ -416,14 +360,18 @@ struct ChannelValueItem : MenuItem {
 	}
 };
 
+
 struct ChannelItem : MenuItem {
 	Network* module;
 	Menu* createChildMenu() override {
 		Menu* menu = new Menu;
 		for (int channels = 1; channels <= 16; channels++) {
 			ChannelValueItem* item = new ChannelValueItem;
-			item->text = string::f("%d", channels);
-			item->rightText = CHECKMARK(module->outputRouter.numChannels == channels);
+			if (channels == 1)
+				item->text = "Monophonic";
+			else
+				item->text = string::f("%d", channels);
+			item->rightText = CHECKMARK(module->outputRouter.channels == channels);
 			item->module = module;
 			item->channels = channels;
 			menu->addChild(item);
@@ -490,7 +438,7 @@ struct NetworkWidget : ModuleWidget {
 			cy = (128.52-(border*2))/3*i;
 			cy *= 0.75;
 
-			cy += border -3;
+			cy += border;
 
 			for(int j = 0; j < 4; j++){
 				cx = (121.92-(border*2))/3*(j + (i % 2 ? 0.5 : 0));
@@ -526,7 +474,7 @@ struct NetworkWidget : ModuleWidget {
 		}
 
 		dist = 8;
-		cx = 18.960155; cy = 111.20094;
+		cx = border; cy = 128.5 - (border*0.8);
 		for(int k = 0; k < 6; k++){
 			angle = (k+0.5)* (PI*2/6);
 			x = cos(angle)*dist;
@@ -536,19 +484,14 @@ struct NetworkWidget : ModuleWidget {
 		}
 		addParam(createParamCentered<PushButtonMomentaryLarge>(mm2px(Vec(cx, cy)), module, Network::RESET_PARAM));
 		
-		addParam(createParamCentered<KnobTransparentDotted>(mm2px(Vec(43.443615, 109.08425)), module, Network::ATTENUVERSION_PARAM));
-		addParam(createParamCentered<RockerSwitchHorizontal>(mm2px(Vec(52.209492, 115.00568)), module, Network::BIPOLAR_PARAM));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(54.77454, 107.494)), module, Network::ATTENUVERSION_INPUT));
+		addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(116.8, cy-3.5)), module, Network::CV_OUTPUT));
+		addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(109.5, cy+3.5)), module, Network::GATE_OUTPUT));
+
+		cy -= 3.5;
+		addParam(createParamCentered<RockerSwitchVertical>(mm2px(Vec(43.463, cy)), module, Network::BIPOLAR_PARAM));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(47, cy+8.1)), module, Network::ATTENUVERSION_INPUT));
+		addParam(createParamCentered<KnobTransparentDotted>(mm2px(Vec(53, cy)), module, Network::ATTENUVERSION_PARAM));
 		
-		addParam(createParamCentered<KnobTransparentDotted>(mm2px(Vec(67.05793, 112.74732)), module, Network::GATE_LEN_PARAM));	
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(78.388855, 111.15707)), module, Network::GATE_LEN_INPUT));
-
-		addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(115.15991, 108.12705)), module, Network::CV_OUTPUT));
-		addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(105.50927, 113.84677)), module, Network::RETRIG_OUTPUT));
-		addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(115.15991, 120.06448)), module, Network::GATE_OUTPUT));
-
-		//addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(4,4)), module, Network::DEBUG_OUTPUT));
-
 	}
 
 	void step() override {
@@ -556,7 +499,7 @@ struct NetworkWidget : ModuleWidget {
 
 		if (module) {
 			for(int node = 0; node < 4*4; node++){
-				if(module->nodes[node].bypassBtn != nullptr && module->nodes[node].bypassBtn->getValue()){
+				if(module->nodes[node].isBypass()){
 					knobLights[node]->bgColor = nvgRGB(0x10,0x00,0x00); 	
 				}
 				else{ 
@@ -570,11 +513,12 @@ struct NetworkWidget : ModuleWidget {
 	void appendContextMenu(Menu* menu) override {
 		Network* module = dynamic_cast<Network*>(this->module);
 
+		menu->addChild(new MenuEntry);
 		menu->addChild(new MenuSeparator());
 
 		ChannelItem* channelItem = new ChannelItem;
 		channelItem->text = "Polyphony channels";
-		channelItem->rightText = string::f("%d", module->outputRouter.numChannels) + "  " + RIGHT_ARROW;
+		channelItem->rightText = string::f("%d", module->outputRouter.channels) + "  " + RIGHT_ARROW;
 		channelItem->module = module;
 		menu->addChild(channelItem);
 
