@@ -4,7 +4,6 @@
 #define PI 3.14159265
 
 //TODO:
-//update manual images
 //attenuvert input + knob add instead of override? different scaling?
 //changeable skins (light / dark)
 //expansions??
