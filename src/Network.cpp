@@ -3,6 +3,8 @@
 
 #define PI 3.14159265
 
+//TODO:
+//update manual images
 //attenuvert input + knob add instead of override? different scaling?
 //changeable skins (light / dark)
 //expansions??
@@ -317,6 +319,13 @@ struct Network : Module {
 		json_object_set_new(rootJ, "channels", json_integer(outputRouter.channels));
 		json_object_set_new(rootJ, "polyMode", json_integer(outputRouter.polyMode));
 
+		json_t *nodeStatesJ = json_array();
+		for (int node = 0; node < 16; node++) {
+			json_t *nodeStateJ = json_integer((int) nodes[node].state);
+			json_array_append_new(nodeStatesJ, nodeStateJ);
+		}
+		json_object_set_new(rootJ, "nodeStates", nodeStatesJ);
+
 		return rootJ;
 	}
 
@@ -329,7 +338,17 @@ struct Network : Module {
 		if (polyModeJ)
 			outputRouter.setPolyMode((PolyMode) json_integer_value(polyModeJ));
 		
+		json_t *nodeStatesJ = json_object_get(rootJ, "nodeStates");
+		if (nodeStatesJ) {
+			for (int node = 0; node < 16; node++) {
+				json_t *nodeStateJ = json_array_get(nodeStatesJ, node);
+				if (nodeStateJ)
+					nodes[node].state = json_integer_value(nodeStateJ);
+			}
+		}
 	}
+
+	
 
 };
 
