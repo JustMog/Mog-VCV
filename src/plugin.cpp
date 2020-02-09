@@ -9,7 +9,7 @@ void init(Plugin* p) {
 
 	// Add modules here
 	// p->addModel(modelMyModule);
-	p->addModel(modelQuantizer);
+	//p->addModel(modelQuantizer);
 	p->addModel(modelNetwork);
 
 	// Any other plugin initialization may go here.
