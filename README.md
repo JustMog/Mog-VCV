@@ -8,8 +8,8 @@ Mog's modules for VCV Rack
 
 Network is a "node-based" polyphonic sequencer consisting of 16 identical nodes.  
 
-When a node first receives a trigger at either of its two inputs, it sends the node's value (set by the knob) to the main cv out, and relays the trigger to the main gate out.  
-Subsequent triggers are relayed to each of the nodes connected outputs in turn, then the cycle repeats.
+When a node first receives a gate at either of its two inputs, it sends the node's value (set by the knob) to the main cv out, and relays the gate to the main gate out.  
+Subsequent gates are relayed to each of the nodes connected outputs in turn, then the cycle repeats.
 
 
 You can generate a repeating sequence by connecting nodes together.
@@ -28,13 +28,10 @@ Instead, Network has "Fixed", in which each of the 16 nodes gets its own channel
 Rests can be inserted into the sequence by connecting a node output to something other than another node.
 If in doubt, the SS-112 input sinks module by Submarine is a good choice.
 
-Node inputs accept polyphonic signals for a total of 32 possible trigger sources per node.
+Node inputs accept polyphonic signals for a total of 32 possible gate sources per node.
 
 Nodes 1 and 9 can be "bypassed" with their adjacent buttons.
 When in bypass mode, a node will still relay to the node outputs as normal, but will skip outputting to the main cv and gate outputs.
 
 CV Attenuversion scales the voltage range of all channels of the main CV out.
 The input will override the knob and uses the 1v/Octave standard.
-
-Though Network will work just fine when sent triggers, it actually takes and relays any input signal, triggering when the input exceeds 0 volts.
-When relaying input signals, the maximum value is relayed.

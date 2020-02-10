@@ -28,16 +28,13 @@ struct Node{
     Param* bypassBtn;
 
     int id;
-    int state = -1;
+    int state = -2;
     bool bypass = false;
-	const float TRIG_THRESHOLD = 0;//0.00001;
-
-    float inputsPrev[NODE_NUM_INS][16];
-    Output* relayTo = nullptr;
+   	dsp::SchmittTrigger inputTriggers[NODE_NUM_INS][16];
+    
     OutputRouter* outputRouter;
-	float maxInVoltage;
 	float lightBrightness = 0.f;
-
+	bool doReset = false;
     
     void init(int _id, Param* _knob, Light* _light, Input* _input, Output* _output, OutputRouter* _out, Param* _bypassBtn = nullptr){
         id = _id;
@@ -62,66 +59,66 @@ struct Node{
 		return bypassBtn != nullptr && bypassBtn->getValue();
 	}
 
-    void closeRelay(){          
-        if(relayTo != nullptr)
-            relayTo->setVoltage(0.f);  
-        relayTo = nullptr;
-    }
+	bool allTrigsLow(){
+		for (int in = 0; in < NODE_NUM_INS; in++)
+			for (int ch = 0; ch < 16; ch++)
+				if(inputTriggers[in][ch].isHigh()) 
+					return false;
+		return true;
+	}
 
     void process(float dt){
 
 		light->setSmoothBrightness(lightBrightness, dt);
 
-		bool doTrigger = false;
-        maxInVoltage = -1;
-        
+		bool doTrigger = false;   
 		for (int in = 0; in < NODE_NUM_INS; in++){
-			for (int ch = 0; ch < 16; ch++){
-				
-				float newVal = getInput(in)->getVoltage(ch);
-				if(newVal > maxInVoltage) maxInVoltage = newVal;
-				
-				if(inputsPrev[in][ch] <= TRIG_THRESHOLD && newVal > TRIG_THRESHOLD){
-					doTrigger = true;                                    
-				}
-				inputsPrev[in][ch] = newVal;
+			for (int ch = 0; ch < 16; ch++){							
+				float val = getInput(in)->getVoltage(ch);
+				val = rescale(val, 0.1f, 2.f, 0.f, 1.f);//obey voltage stadards for triggers
+				if(inputTriggers[in][ch].process(val)) doTrigger = true;
 			}
         }
 		if(doTrigger) trigger();  
-        
-		if (relayTo != nullptr){
-            if(maxInVoltage <= 0)
-                closeRelay();
-            else
-                relayTo->setVoltage(maxInVoltage);
-        }
+        		
+		if (state >= 0)
+			getOutput(state)->setVoltage(allTrigsLow() ? 0.f : 10.f);
+		else if(state == -1 && allTrigsLow())
+			stop();	
 
+    }
+  
+    void trigger(){
+		//stop current state's gate output
+		if(state >= 0)
+			getOutput(state)->setVoltage(0.f);
+		else if(state == -1) 
+			stop();
+
+		if(doReset){
+			state = -2;
+			doReset = false;
+		}
+
+        for(int i = 0; i < NODE_NUM_OUTS + 1; i++){
+            advanceState();
+			if(state == -1){
+                if(not isBypass()){
+					play();
+                    return;
+                }
+            }
+            else if(getOutput(state)->isConnected()){
+        		return; 
+            }
+        }
+		//no action available
+		reset();
     }
 
     void advanceState(){
         state++;
         if(state >= NODE_NUM_OUTS) state = -1;
-    }
-    
-    void trigger(){
-        closeRelay();
-		stop();
-
-        for(int i = 0; i < NODE_NUM_OUTS + 1; i++){
-            if(state == -1){
-                if(not isBypass()){
-					play();
-                    advanceState();
-                    return;
-                }
-            }
-            else if(getOutput(state)->isConnected()){
-                relayTo = getOutput(state);
-                advanceState();
-                return; 
-            }
-            advanceState();
-        }
     }
 
 	void play();
@@ -129,7 +126,7 @@ struct Node{
 	void stop();
 
     void reset(){
-        state = -1;
+        doReset = true;
     }
 
 };
@@ -143,19 +140,25 @@ struct OutputRouter{
 
     Output* cvOut;
     Output* gateOut;
+	Output* retrigOut;
 
 	float cvMin = 0;
 	float cvMax = 10;
 
-    void init(Output* cv, Output* gate){
+	dsp::PulseGenerator retrigPulses[16];
+
+
+    void init(Output* cv, Output* gate, Output* retrig){
         cvOut = cv;
         gateOut = gate;
+		retrigOut = retrig;
         for(int i = 0; i < 16; i++) channels[i] = nullptr;
     }
 
-    void process(bool bipolar, float attenuversion){
+    void process(float dt, bool bipolar, float attenuversion){
         cvOut->setChannels(numChannels);
 		gateOut->setChannels(numChannels);
+		retrigOut->setChannels(numChannels);
 
 		if(bipolar){
 			cvMin = -5*attenuversion;
@@ -169,16 +172,13 @@ struct OutputRouter{
 		for(int ch = 0; ch < numChannels; ch++){
 			if(channels[ch] != nullptr){
 				Node* node = channels[ch];
-				if(node->maxInVoltage <= 0)
-					closeChannel(ch);
-				else{
-					float out = node->knob->getValue();
-					out = rescale(out, 0.f, 1.f, cvMin, cvMax);
-					cvOut->setVoltage(out, ch);
-					gateOut->setVoltage(node->maxInVoltage, ch);
-					node->lightBrightness = node->maxInVoltage/10;
-				}
+
+				float out = node->knob->getValue();
+				out = rescale(out, 0.f, 1.f, cvMin, cvMax);
+				cvOut->setVoltage(out, ch);
+				node->lightBrightness = 1.f;		
 			}
+			retrigOut->setVoltage(retrigPulses[ch].process(dt)*10.f,ch);
 		}
 
     }
@@ -190,7 +190,6 @@ struct OutputRouter{
 	void setChannels(int n){
 		numChannels = n;
 		for(int i = n; i < 16; i++) closeChannel(i);
-
 		if(polyMode == ROTATE_MODE && rotateIndex > numChannels -1) rotateIndex = -1;
 	}
 
@@ -198,6 +197,8 @@ struct OutputRouter{
         int c = getChannel(node);
 		closeChannel(c);
         channels[c] = node;
+		gateOut->setVoltage(10.f, c);
+		retrigPulses[c].trigger();
     }
 
 	void stopNode(Node* node){
@@ -280,10 +281,12 @@ struct Network : Module {
 		ENUMS(TRIG_OUTPUT, NODE_NUM_OUTS * 4 * 4),
 		CV_OUTPUT,
 		GATE_OUTPUT,
+		RETRIG_OUTPUT,
 		NUM_OUTPUTS
 	};
 	enum LightIds {
 		ENUMS(TRIG_LIGHT, 4 * 4),
+		ENUMS(BYPASS_LIGHT, 2),
 		NUM_LIGHTS
 	};
 
@@ -302,7 +305,7 @@ struct Network : Module {
 		configParam(BYPASS_PARAM, 0.f, 1.f, 0.f, "Bypass");	
 		configParam(BYPASS_PARAM+1, 0.f, 1.f, 0.f, "Bypass");	
        
-	    outputRouter.init(&outputs[CV_OUTPUT], &outputs[GATE_OUTPUT]);
+	    outputRouter.init(&outputs[CV_OUTPUT], &outputs[GATE_OUTPUT], &outputs[RETRIG_OUTPUT]);
         
 		int bypass = 0;
 		for(int i = 0; i < 4*4; i++){
@@ -320,15 +323,26 @@ struct Network : Module {
 
     }
 
+	void resetNodes(){
+		for(int node = 0; node < 16; node++)
+			nodes[node].reset();
+	}
+		
+
     void process(const ProcessArgs& args) override {
-        for(int i = 0; i < 6; i++)		
-			if(resetBtnTrigger.process(params[RESET_PARAM].getValue()) 
-			or resetTriggers[i].process(inputs[RESET_INPUT+i].getVoltage())){
-				for(int node = 0; node < 16; node++)
-					nodes[node].reset();
-			}
+        
+		if(resetBtnTrigger.process(params[RESET_PARAM].getValue()))
+			resetNodes();
+
+		for(int i = 0; i < 6; i++){	
+			bool val = inputs[RESET_INPUT+i].getVoltage();	
+			val = rescale(val, 0.1f, 2.f, 0.f, 1.f);//obey voltage stadards for triggers
+			if(resetTriggers[i].process(val))
+				resetNodes();		
+		}
 
         outputRouter.process(
+			args.sampleTime,
 			params[BIPOLAR_PARAM].getValue() > 0.f,
 			inputs[ATTENUVERSION_INPUT].isConnected() ?
 			inputs[ATTENUVERSION_INPUT].getVoltage()/10 :
@@ -338,6 +352,8 @@ struct Network : Module {
         for(int node = 0; node < 4*4; node++){			
             nodes[node].process(args.sampleTime);
         }
+		lights[BYPASS_LIGHT].setSmoothBrightness(nodes[0].isBypass() ? 1.f : 0.f, args.sampleTime);
+		lights[BYPASS_LIGHT+1].setSmoothBrightness(nodes[8].isBypass() ? 1.f : 0.f, args.sampleTime);
     }
 
 	json_t* dataToJson() override {
@@ -493,7 +509,9 @@ struct NetworkWidget : ModuleWidget {
 				if( j == 0 && i % 2 == 0){
 					x = cos(PI*2/6)*dist*2;
 					y = sin(PI*2/6)*dist*2;
-					addParam(createParamCentered<PushButtonLarge>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_PARAM+bypassesDone++));
+					addChild(createLightCentered<KnobLight>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_LIGHT+bypassesDone));
+					addParam(createParamCentered<PushButtonLargeTransparent>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_PARAM+bypassesDone));
+					bypassesDone++;
 				}
 				nodesDone++;
 			}
@@ -510,10 +528,12 @@ struct NetworkWidget : ModuleWidget {
 		}
 		addParam(createParamCentered<PushButtonMomentaryLarge>(mm2px(Vec(cx, cy)), module, Network::RESET_PARAM));
 		
-		addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(116.8, cy-3.5)), module, Network::CV_OUTPUT));
-		addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(109.5, cy+3.5)), module, Network::GATE_OUTPUT));
-
-		cy -= 3.5;
+		cy += 0.5f;
+		addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(115, cy-5)), module, Network::CV_OUTPUT));
+		addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(115, cy+5)), module, Network::GATE_OUTPUT));
+		addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(106, cy)), module, Network::RETRIG_OUTPUT));
+	
+		cy -= 4.f;
 		addParam(createParamCentered<RockerSwitchVertical>(mm2px(Vec(43.463, cy)), module, Network::BIPOLAR_PARAM));
 		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(47, cy+8.1)), module, Network::ATTENUVERSION_INPUT));
 		addParam(createParamCentered<KnobTransparentDotted>(mm2px(Vec(53, cy)), module, Network::ATTENUVERSION_PARAM));

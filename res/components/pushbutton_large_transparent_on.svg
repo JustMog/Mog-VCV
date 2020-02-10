@@ -14,7 +14,7 @@
    viewBox="0 0 9.4499996 9.45"
    version="1.1"
    id="svg15246"
-   sodipodi:docname="pushbutton_large_on.svg"
+   sodipodi:docname="pushbutton_large_transparent_on.svg"
    inkscape:version="0.92.4 (5da689c313, 2019-01-14)">
   <defs
      id="defs15240">
@@ -387,10 +387,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="22.627417"
-     inkscape:cx="13.227136"
-     inkscape:cy="10.758452"
+     inkscape:cx="19.471793"
+     inkscape:cy="12.694437"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer2"
+     inkscape:current-layer="layer3"
      showgrid="false"
      inkscape:window-width="1600"
      inkscape:window-height="1137"
@@ -419,7 +419,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -430,11 +430,11 @@
      transform="translate(4.1827957,-4.6504883)"
      style="display:inline">
     <circle
-       style="display:inline;opacity:1;fill:#1a1a1a;fill-opacity:1;stroke:#797b79;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       style="display:inline;opacity:1;fill:none;fill-opacity:1;stroke:#1a1a1a;stroke-width:0.29104245;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
        id="path894-7"
-       cx="0.54197252"
-       cy="9.375721"
-       r="3.6875796" />
+       cx="0.5813787"
+       cy="9.4259882"
+       r="3.5419788" />
     <circle
        style="opacity:1;fill:none;fill-opacity:1;stroke:#e6e6e6;stroke-width:0.68398881;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
        id="path936"
@@ -449,9 +449,9 @@
      style="display:inline"
      transform="translate(4.1827957,-4.6504883)">
     <circle
-       style="opacity:1;fill:#4d4d4d;fill-opacity:1;stroke:#272727;stroke-width:1.31624174;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       style="opacity:1;fill:none;fill-opacity:1;stroke:#272727;stroke-width:1.31624174;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
        id="path930"
-       cx="0.53374779"
+       cx="0.5813787"
        cy="9.2849455"
        r="3.001219" />
   </g>
