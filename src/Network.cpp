@@ -31,6 +31,7 @@ struct Node{
     int state = -2;
     bool bypass = false;
    	dsp::SchmittTrigger inputTriggers[NODE_NUM_INS][16];
+	dsp::Timer suppressTrigsTimer;
     
     OutputRouter* outputRouter;
 	float lightBrightness = 0.f;
@@ -79,7 +80,7 @@ struct Node{
 				if(inputTriggers[in][ch].process(val)) doTrigger = true;
 			}
         }
-		if(doTrigger) trigger();  
+		if(suppressTrigsTimer.process(dt) > 1e-3f && doTrigger) trigger();  
         		
 		if (state >= 0)
 			getOutput(state)->setVoltage(allTrigsLow() ? 0.f : 10.f);
@@ -89,6 +90,9 @@ struct Node{
     }
   
     void trigger(){
+		//ignore trigs that are too close together
+		suppressTrigsTimer.reset();
+
 		//stop current state's gate output
 		if(state >= 0)
 			getOutput(state)->setVoltage(0.f);
@@ -335,7 +339,7 @@ struct Network : Module {
 			resetNodes();
 
 		for(int i = 0; i < 6; i++){	
-			bool val = inputs[RESET_INPUT+i].getVoltage();	
+			float val = inputs[RESET_INPUT+i].getVoltage();	
 			val = rescale(val, 0.1f, 2.f, 0.f, 1.f);//obey voltage stadards for triggers
 			if(resetTriggers[i].process(val))
 				resetNodes();		
