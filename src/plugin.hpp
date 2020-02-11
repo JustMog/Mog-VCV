@@ -16,4 +16,5 @@ extern Plugin* pluginInstance;
 //extern Model* modelQuantizer;
 extern Model* modelNetwork;
 
+extern Model* modelNexus;
 

@@ -35,3 +35,23 @@ When in bypass mode, a node will still relay to the node outputs as normal, but 
 
 CV Attenuversion scales the voltage range of all channels of the main CV out.
 The input will override the knob and uses the 1v/Octave standard.
+
+**Nexus:**
+---------------------------
+![Nexus](/doc/nexus.png)
+
+Nexus is a combination clock divider & sequential switch designed for use with network, but it may be useful elsewhere too.
+
+Nexus is made up of 6 identical "stages".  
+Each stage sends the first N gates it receives to its first output and all subsequent gates to its second output. (N is adjustable using that stage's knob).  
+
+![Demo](/doc/nexus_demo.gif)
+
+**Advanced features:**  
+
+The second output of each stage is "normalled" to the input of the next, except the final stage, which is normalled to reset.
+
+Inputs and outputs are polyphonic. 
+
+
+

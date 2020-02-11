@@ -71,6 +71,14 @@ struct KnobTransparent : RoundKnob {
 	}
 };
 
+struct KnobTransparentSmall : RoundKnob {
+	KnobTransparentSmall() {
+		minAngle = -0.83 * M_PI;
+		maxAngle = 0.83 * M_PI;
+		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/knob_transparent_small.svg")));
+	}
+};
+
 struct KnobTransparentDotted : RoundKnob {
 	KnobTransparentDotted() {
 		minAngle = -0.83 * M_PI;
