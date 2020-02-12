@@ -4,7 +4,7 @@ Mog's modules for VCV Rack
 
 **Network:**
 ---------------------------
-![Network](/doc/network.png)
+![Network](https://github.com/JustMog/Mog-VCV-Docs/blob/master/doc/network.png)
 
 Network is a "node-based" polyphonic sequencer consisting of 16 identical nodes.  
 
