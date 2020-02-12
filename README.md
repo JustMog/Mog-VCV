@@ -14,7 +14,7 @@ Subsequent gates are relayed to each of the nodes connected outputs in turn, the
 
 You can generate a repeating sequence by connecting nodes together.
 
-![Demo](/doc/network_demo.gif)
+![Demo](https://github.com/JustMog/Mog-VCV-Docs/blob/master/doc/network_demo.gif)
 
 **Polyphony:**  
 
@@ -38,14 +38,14 @@ The input will override the knob and uses the 1v/Octave standard.
 
 **Nexus:**
 ---------------------------
-![Nexus](/doc/nexus.png)
+![Nexus](https://github.com/JustMog/Mog-VCV-Docs/blob/master/doc/nexus.png)
 
 Nexus is a combination clock divider & sequential switch designed for use with network, but it may be useful elsewhere too.
 
 Nexus is made up of 6 identical "stages".  
 Each stage sends the first N gates it receives to its first output and all subsequent gates to its second output. (N is adjustable using that stage's knob).  
 
-![Demo](/doc/nexus_demo.gif)
+![Demo](https://github.com/JustMog/Mog-VCV-Docs/blob/master/doc/nexus_demo.gif)
 
 **Advanced features:**  
 
