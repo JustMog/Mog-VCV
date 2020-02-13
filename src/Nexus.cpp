@@ -44,6 +44,8 @@ struct Stage{
 
 };
 
+
+
 struct Nexus : Module {
 	enum ParamIds {
 		ENUMS(REPS_PARAM, NUM_STAGES),
@@ -65,9 +67,8 @@ struct Nexus : Module {
 		NUM_LIGHTS
 	};
 
-
-    dsp::SchmittTrigger resetTrigger[16];
-	dsp::BooleanTrigger resetBtnTrigger[2];
+    dsp::SchmittTrigger resetTrigger[2][16];
+	dsp::BooleanTrigger resetBtnTrigger;
 	Stage stages[NUM_STAGES];	
 
 	dsp::Timer resetTimer;
@@ -161,8 +162,8 @@ struct Nexus : Module {
 					//still going. to output.		
 					for (int ch = 0; ch < 16; ch++)
 						s->output->setVoltage(getInput(stage, ch),ch);
-					float v = allTrigsLow(stage) ? 0.f : 10.f;
 					
+					float v = allTrigsLow(stage) ? 0.f : 10.f;	
 					s->lightBrightness = v/10.f;
 				}
 				else{
@@ -184,24 +185,25 @@ struct Nexus : Module {
 		}
 
 		//important that this happens last
-		for(int i = 0; i < 2; i++)
-		if(resetBtnTrigger[i].process(params[RESET_PARAM+i].getValue())){
+		if(resetBtnTrigger.process(params[RESET_PARAM].getValue())){
 			reset();
 		}
 
-		for (int ch = 0; ch < 16; ch++){
-			float val = inputs[RESET_INPUT].getVoltage(ch);
-			val = rescale(val, 0.1f, 2.f, 0.f, 1.f);//obey voltage stadards for triggers
-			if(resetTrigger[ch].process(val))
-				reset();		
+		for(int in = 0; in < 2; in++){
+			for (int ch = 0; ch < 16; ch++){
+				float val = inputs[RESET_INPUT+in].getVoltage(ch);
+				val = rescale(val, 0.1f, 2.f, 0.f, 1.f);//obey voltage stadards for triggers
+				if(resetTrigger[in][ch].process(val))
+					reset();		
+			}
 		}
 
     }	
 
 };
 
-struct Readout : TransparentWidget
-{
+
+struct Readout : TransparentWidget{
 	Nexus *module;
 	Knob *knob;
 	std::shared_ptr<Font> font;
@@ -297,22 +299,6 @@ struct NexusWidget : ModuleWidget {
 		addParam(createParamCentered<PushButtonMomentaryLarge>(mm2px(Vec(x, y)), module, Nexus::RESET_PARAM));
 
 	
-	}
-	
-	void step() override {
-		Nexus *module = dynamic_cast<Nexus*>(this->module);
-
-		if (module) {
-			for(int stage = 0; stage < NUM_STAGES; stage++){
-				if(module->stages[stage].counter < 1){
-					knobLights[stage]->bgColor = nvgRGB(0x00,0x00,0x00); 	
-				}
-				else{ 
-					knobLights[stage]->bgColor = nvgRGB(0x3B, 0x3B, 0x3B);
-				}
-			}
-		}
-		ModuleWidget::step();
 	}
 
 };

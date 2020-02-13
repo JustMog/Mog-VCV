@@ -51,7 +51,7 @@ Each stage sends the first N gates it receives to its first output and all subse
 
 The second output of each stage is "normalled" to the input of the next, except the final stage, which is normalled to reset.
 
-Inputs and outputs are polyphonic. 
+Inputs and outputs are polyphonic.
 
 
 
