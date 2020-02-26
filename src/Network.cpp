@@ -136,10 +136,10 @@ struct Node{
 };
 
 struct OutputRouter{
-    int numChannels = 1;
+    int numChannels = 16;
     Node* channels[16];
     
-    PolyMode polyMode = ROTATE_MODE;
+    PolyMode polyMode = RESET_MODE;
     int rotateIndex = -1;
 
     Output* cvOut;
