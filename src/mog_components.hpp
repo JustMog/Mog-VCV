@@ -4,19 +4,23 @@ using namespace rack;
 extern Plugin* pluginInstance;
 
 
-struct PushButtonMomentary : SvgSwitch {
-	PushButtonMomentary() {
-		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_off.svg")));
-		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_on.svg")));
-		momentary = true;
-	}
-};
+#define MOG_RED 	    nvgRGB(153, 36, 68)
+#define MOG_ORANGE 		nvgRGB(226, 126, 88)
+#define MOG_YELLOW 		nvgRGB(232, 202, 30)
+#define MOG_GREEN 		nvgRGB(172, 214, 45)
+#define MOG_BLUE 		nvgRGB(76, 146, 207)
+#define MOG_PURPLE 		nvgRGB(187, 179, 216)
+#define MOG_WHITE 		nvgRGB(230, 230, 230)
+#define MOG_GREY_LIGHT 	nvgRGB(138, 138, 138)
+#define MOG_GREY_MED 	nvgRGB(77, 77, 77)
+#define MOG_GREY_DARK 	nvgRGBA(58, 58, 58, 255)
+#define MOG_BLACK 		nvgRGB(26, 26, 26)
 
-struct PushButtonMomentaryLarge : SvgSwitch {
-	PushButtonMomentaryLarge() {
-		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_large_off.svg")));
-		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_large_on.svg")));
-		momentary = true;
+
+struct PushButtonTiny : SvgSwitch {
+	PushButtonTiny() {
+		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_tiny_off.svg")));
+		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_tiny_on.svg")));
 	}
 };
 
@@ -24,18 +28,8 @@ struct PushButtonLarge : SvgSwitch {
 	PushButtonLarge() {
 		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_large_off.svg")));
 		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_large_on.svg")));
-		momentary = false;
 	}
 };
-
-struct PushButtonLargeTransparent : SvgSwitch {
-	PushButtonLargeTransparent() {
-		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_large_off.svg")));
-		addFrame(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/pushbutton_large_transparent_on.svg")));
-		momentary = false;
-	}
-};
-
 
 struct RockerSwitchHorizontal: SvgSwitch {
 	RockerSwitchHorizontal() {
@@ -63,54 +57,58 @@ struct RoundJackOutRinged : SVGPort {
 	}
 };
 
-struct KnobTransparent : RoundKnob {
-	KnobTransparent() {
+struct KnobLarge: RoundKnob {
+	KnobLarge() {
 		minAngle = -0.83 * M_PI;
 		maxAngle = 0.83 * M_PI;
-		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/knob_transparent.svg")));
+		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/knob.svg")));
 	}
 };
 
-struct KnobTransparentSmall : RoundKnob {
-	KnobTransparentSmall() {
+struct KnobSmall : RoundKnob {
+	KnobSmall() {
 		minAngle = -0.83 * M_PI;
 		maxAngle = 0.83 * M_PI;
-		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/knob_transparent_small.svg")));
+		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/knob_small.svg")));
 	}
 };
 
-struct KnobTransparentDotted : RoundKnob {
-	KnobTransparentDotted() {
-		minAngle = -0.83 * M_PI;
-		maxAngle = 0.83 * M_PI;
-		setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/knob_transparent_dotted.svg")));
+
+struct ButtonLight : app::ModuleLightWidget {
+
+	ButtonLight() {
+		this->box.size = app::mm2px(math::Vec(4.686,4.686));
+		this->bgColor = MOG_GREY_MED;
+		this->addBaseColor(MOG_WHITE);
 	}
+
+
+
+};
+
+struct ButtonLightTiny : app::ModuleLightWidget {
+
+	ButtonLightTiny() {
+		this->box.size = app::mm2px(math::Vec(3.485-0.627*2,3.485-0.62782));
+		this->bgColor = MOG_GREY_MED;
+		this->addBaseColor(MOG_WHITE);
+	}
+
 };
 
 struct KnobLight : app::ModuleLightWidget {
-
 	KnobLight() {
-		this->box.size = app::mm2px(math::Vec(5.731,5.731));//11.077,11.077));
-		this->bgColor = nvgRGB(0x3b, 0x3b, 0x3b); //nvgRGB(0x0e, 0x69, 0x77);
-		this->addBaseColor(nvgRGB(0xff, 0xff, 0xff)); //nvgRGB(0xff, 0xcc, 0x03));
-	}
-
-	void drawLight(const widget::Widget::DrawArgs& args) override {
-		float radius = std::min(this->box.size.x, this->box.size.y) / 2.0;
-		nvgBeginPath(args.vg);
-		nvgCircle(args.vg, radius, radius, radius);
-
-		// Background
-		if (this->bgColor.a > 0.0) {
-			nvgFillColor(args.vg, this->bgColor);
-			nvgFill(args.vg);
-		}
-
-		// Foreground
-		if (this->color.a > 0.0) {
-			nvgFillColor(args.vg, this->color);
-			nvgFill(args.vg);
-		}
-
+		this->box.size = app::mm2px(math::Vec(5.731,5.731));
+		this->bgColor = MOG_GREY_DARK;
+		this->addBaseColor(MOG_WHITE);
 	}
 };
+
+struct KnobLightSmall : app::ModuleLightWidget {
+	KnobLightSmall() {
+		this->box.size = app::mm2px(math::Vec(3.909,3.909));
+		this->bgColor = MOG_GREY_DARK;
+		this->addBaseColor(MOG_WHITE);
+	}
+};
+

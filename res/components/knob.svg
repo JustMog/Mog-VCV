@@ -9,12 +9,12 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="11.07666mm"
+   width="11.076657mm"
    height="11.076672mm"
-   viewBox="0 0 11.07666 11.076672"
+   viewBox="0 0 11.076657 11.076672"
    version="1.1"
    id="svg15246"
-   sodipodi:docname="knob_transparent3.svg"
+   sodipodi:docname="knob.svg"
    inkscape:version="0.92.4 (5da689c313, 2019-01-14)">
   <defs
      id="defs15240">
@@ -387,10 +387,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="11.313709"
-     inkscape:cx="12.490222"
-     inkscape:cy="24.631852"
+     inkscape:cx="11.265828"
+     inkscape:cy="25.460443"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="layer2"
      showgrid="true"
      inkscape:window-width="1600"
      inkscape:window-height="1137"
@@ -401,13 +401,10 @@
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
-     fit-margin-bottom="0"
-     objecttolerance="36"
-     inkscape:snap-perpendicular="true">
+     fit-margin-bottom="0">
     <inkscape:grid
        type="xygrid"
-       id="grid898"
-       enabled="false" />
+       id="grid948" />
   </sodipodi:namedview>
   <metadata
      id="metadata15243">
@@ -425,14 +422,25 @@
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="Layer 2"
-     style="display:inline" />
+     style="display:inline">
+    <rect
+       style="opacity:1;fill:#3a3a3a;fill-opacity:1;stroke:none;stroke-width:1.07599998;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:normal"
+       id="rect2440"
+       width="6.3499985"
+       height="7.4083333"
+       x="2.3812499"
+       y="1.8162549"
+       rx="2.258224"
+       ry="2.2126865" />
+  </g>
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-47.077477,-85.827267)">
+     transform="translate(-47.077477,-85.827267)"
+     style="display:inline">
     <path
-       style="fill:#1a1a1a;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.33333325"
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.33333325"
        d="M 20.931641,0 C 9.3743055,0 0,9.374347 0,20.931641 0,32.49414 9.3743055,41.865234 20.931641,41.865234 c 11.562526,0 20.933593,-9.371094 20.933593,-20.933593 C 41.865234,9.374347 32.494167,0 20.931641,0 Z m -2.666016,4.4902344 h 5.189453 v 1.7460937 c 7.043765,1.2011181 12.408203,7.3147059 12.408203,14.6972659 0,8.250028 -6.6836,14.933594 -14.933593,14.933594 -8.244802,0 -14.9316411,-6.683566 -14.9316411,-14.933594 0,-7.331658 5.2984631,-13.3968223 12.2675781,-14.6562502 z"
        transform="matrix(0.26458333,0,0,0.26458333,47.077477,85.827267)"
        id="path7597"
@@ -443,10 +451,10 @@
        id="path7603"
        inkscape:connector-curvature="0" />
     <circle
-       style="opacity:1;fill:#333333;fill-opacity:1;stroke:#797b79;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
-       id="path894"
-       cx="52.615978"
-       cy="91.36544"
-       r="2.8654995" />
+       style="display:inline;opacity:1;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:1.17961204;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:normal"
+       id="path2435"
+       cx="52.615898"
+       cy="91.365692"
+       r="3.3927646" />
   </g>
 </svg>

@@ -24,6 +24,13 @@
       "manualUrl": "https://github.com/JustMog/Mog-VCV/#network"
     },
     {
+      "slug": "NetworkExpander",
+      "name": "NetworkExpander",
+      "description": "Additional CV input expander for Network",
+      "tags": ["Expander"],
+      "manualUrl": "https://github.com/JustMog/Mog-VCV#NetworkExpander"
+    },
+    {
       "slug": "Nexus",
       "name": "Nexus",
       "description": "Combination clock divider & sequential switch",
@@ -32,6 +39,18 @@
         "Polyphonic"
       ],
       "manualUrl": "https://github.com/JustMog/Mog-VCV#nexus"
+    },
+    {
+      "slug": "Noise",
+      "name": "Noise",
+      "description": "Simplex noise via FastNoise",
+      "tags": [
+        "Noise",
+        "Random",
+        "Polyphonic"
+      ],
+      "manualUrl": "https://github.com/JustMog/Mog-VCV#noise"
     }
+    
   ]
 }

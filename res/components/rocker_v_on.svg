@@ -431,10 +431,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="11.313709"
-     inkscape:cx="8.3243963"
-     inkscape:cy="0.6678686"
+     inkscape:cx="-5.8177387"
+     inkscape:cy="22.323013"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer5"
+     inkscape:current-layer="layer3"
      showgrid="false"
      inkscape:window-width="1600"
      inkscape:window-height="1137"
@@ -467,12 +467,6 @@
       </cc:Work>
     </rdf:RDF>
   </metadata>
-  <g
-     inkscape:groupmode="layer"
-     id="layer4"
-     inkscape:label="Layer 4"
-     style="display:inline"
-     transform="translate(1.1360303,1.7906509)" />
   <g
      inkscape:groupmode="layer"
      id="layer3"
@@ -508,7 +502,8 @@
      inkscape:groupmode="layer"
      id="layer5"
      inkscape:label="Layer 5"
-     transform="translate(1.1360303,1.7906509)">
+     transform="translate(1.1360303,1.7906509)"
+     style="display:inline">
     <circle
        style="display:inline;opacity:1;fill:#f2f2f2;fill-opacity:1;stroke:#272727;stroke-width:0.62678176;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
        id="path930"

@@ -5,6 +5,9 @@
 
 #define NUM_STAGES 6
 
+//TODO: attenuvert THEN offset not vice versa, 
+//but somehow keep the old way in for compatability?
+
 struct Stage{
 	int counter = 0;
 	Param* knob;
@@ -64,6 +67,7 @@ struct Nexus : Module {
 	};
 	enum LightIds {
 		ENUMS(STEP_LIGHT, NUM_STAGES),
+		RESET_LIGHT,
 		NUM_LIGHTS
 	};
 
@@ -72,6 +76,7 @@ struct Nexus : Module {
 	Stage stages[NUM_STAGES];	
 
 	dsp::Timer resetTimer;
+	float resetLightBrightness = 0.f;
 
     Nexus() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
@@ -116,6 +121,7 @@ struct Nexus : Module {
 	}
 
 	void reset(){
+		resetLightBrightness = 1.f;
 		for(int stage = 0; stage < NUM_STAGES; stage++){
 			stages[stage].reset();	
 			stages[stage].suppressTrigsTimer.time = 1;
@@ -124,6 +130,7 @@ struct Nexus : Module {
 	}
 
     void process(const ProcessArgs& args) override {
+		resetLightBrightness = 0.f;
 
 		for(int stage = 0; stage < NUM_STAGES; stage++){
 			
@@ -142,9 +149,12 @@ struct Nexus : Module {
 
 
 				for (int ch = 0; ch < 16; ch++){		
-					float val = getInput(stage, ch);		
+					float val = getInput(stage, ch);	
+					
 					val = rescale(val, 0.1f, 2.f, 0.f, 1.f);//obey voltage stadards for triggers
-					if(s->inputTriggers[ch].process(val)) doTrigger = true;
+					if(s->inputTriggers[ch].process(val)){
+							doTrigger = true;
+					} 
 				}
 			
 				if(doTrigger) s->suppressTrigsTimer.reset();
@@ -160,8 +170,9 @@ struct Nexus : Module {
 				
 				if(not s->done){
 					//still going. to output.		
-					for (int ch = 0; ch < 16; ch++)
-						s->output->setVoltage(getInput(stage, ch),ch);
+					for (int ch = 0; ch < 16; ch++){
+							s->output->setVoltage(getInput(stage, ch), ch);
+					}
 					
 					float v = allTrigsLow(stage) ? 0.f : 10.f;	
 					s->lightBrightness = v/10.f;
@@ -183,7 +194,7 @@ struct Nexus : Module {
 			s->light->setSmoothBrightness(s->lightBrightness, args.sampleTime);
 
 		}
-
+		
 		//important that this happens last
 		if(resetBtnTrigger.process(params[RESET_PARAM].getValue())){
 			reset();
@@ -197,18 +208,19 @@ struct Nexus : Module {
 					reset();		
 			}
 		}
+		lights[RESET_LIGHT].setSmoothBrightness(resetLightBrightness, args.sampleTime);
 
     }	
 
 };
 
 
-struct Readout : TransparentWidget{
+struct NexusReadout : TransparentWidget{
 	Nexus *module;
 	Knob *knob;
 	std::shared_ptr<Font> font;
 
-	Readout()
+	NexusReadout()
 	{
 		font = APP->window->loadFont(asset::plugin(pluginInstance, "res/Exo2-BoldItalic.ttf"));
 	}
@@ -263,19 +275,19 @@ struct NexusWidget : ModuleWidget {
 			x += xBorder;
 			addInput(createInputCentered<PJ301MPort>(mm2px(Vec(x, y)), module, Nexus::TRIG_INPUT+stage));
 												
-			//x += xSpacing*2;	
-			y += 14;		
-			light = createLightCentered<KnobLight>(mm2px(Vec(x+2,y+2)), module, Nexus::STEP_LIGHT+stage);
-			light->box.pos.x -= 4;
-			light->box.pos.y -= 4; 
+			y += 14;
+			
+			auto k = createParamCentered<KnobSmall>(mm2px(Vec(x,y)), module, Nexus::REPS_PARAM+stage);
+			dynamic_cast<Knob*>(k)->snap = true;
+			addParam(k);
+				
+			//x += xSpacing*2;			
+			light = createLightCentered<KnobLightSmall>(mm2px(Vec(x,y)), module, Nexus::STEP_LIGHT+stage);
 			knobLights[stage] = light;
 			addChild(light);
 
-			auto k = createParamCentered<KnobTransparentSmall>(mm2px(Vec(x,y)), module, Nexus::REPS_PARAM+stage);
-			dynamic_cast<Knob*>(k)->snap = true;
-			addParam(k);
 
-			Readout *readout = new Readout();
+			NexusReadout *readout = new NexusReadout();
 			readout->box.pos = mm2px(Vec(x-2.5, y-5.35));
 			readout->box.size = mm2px(Vec(20, 20)); // bounding box of the widget
 			readout->module = module;
@@ -294,11 +306,15 @@ struct NexusWidget : ModuleWidget {
 
 		x = 35.56/2.f;
 		y = 128.5 - 15;
+		
 		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(x + 10, y)), module, Nexus::RESET_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(x - 10, y)), module, Nexus::RESET_INPUT+1));					
-		addParam(createParamCentered<PushButtonMomentaryLarge>(mm2px(Vec(x, y)), module, Nexus::RESET_PARAM));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(x - 10, y)), module, Nexus::RESET_INPUT+1));	
 
-	
+		auto b = createParamCentered<PushButtonLarge>(mm2px(Vec(x, y)), module, Nexus::RESET_PARAM);			
+		dynamic_cast<Switch*>(b)->momentary = true;
+		addParam(b);
+		addChild(createLightCentered<ButtonLight>(mm2px(Vec(x,y)), module, Nexus::RESET_LIGHT));
+		
 	}
 
 };

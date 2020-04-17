@@ -68,7 +68,7 @@ struct Node{
 		return true;
 	}
 
-    void process(float dt){
+    void process(float dt, bool sampleHold, float expanderCV){
 
 		light->setSmoothBrightness(lightBrightness, dt);
 
@@ -80,7 +80,7 @@ struct Node{
 				if(inputTriggers[in][ch].process(val)) doTrigger = true;
 			}
         }
-		if(suppressTrigsTimer.process(dt) > 1e-3f && doTrigger) trigger();  
+		if(suppressTrigsTimer.process(dt) > 1e-3f && doTrigger) trigger(sampleHold, expanderCV);  
         		
 		if (state >= 0)
 			getOutput(state)->setVoltage(allTrigsLow() ? 0.f : 10.f);
@@ -89,7 +89,7 @@ struct Node{
 
     }
   
-    void trigger(){
+    void trigger(bool sampleHold, float expanderCV){
 		//ignore trigs that are too close together
 		suppressTrigsTimer.reset();
 
@@ -108,6 +108,8 @@ struct Node{
             advanceState();
 			if(state == -1){
                 if(not isBypass()){
+					if(sampleHold && expanderCV >= 0.f)
+						knob->setValue(expanderCV);
 					play();
                     return;
                 }
@@ -291,14 +293,19 @@ struct Network : Module {
 	enum LightIds {
 		ENUMS(TRIG_LIGHT, 4 * 4),
 		ENUMS(BYPASS_LIGHT, 2),
+		RESET_LIGHT,
 		NUM_LIGHTS
 	};
 
     Node nodes[4*4];
     OutputRouter outputRouter;
+	float resetLightBrightness = 0.f;
 
     dsp::SchmittTrigger resetTriggers[6];
 	dsp::BooleanTrigger resetBtnTrigger;
+
+	bool expanderHold;
+	float expanderCV[16];
 
     Network() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);		
@@ -328,13 +335,52 @@ struct Network : Module {
     }
 
 	void resetNodes(){
+		resetLightBrightness = 1.f;
 		for(int node = 0; node < 16; node++)
 			nodes[node].reset();
 	}
+
+	void processExpanderMessage(float* message){
+		expanderHold = message[18];
 		
+		for(int node = 0; node < 16; node++){
+			if(expanderHold)
+				expanderCV[node] = message[node];
+			else if(message[node] >= 0.f)
+				params[VAL_PARAM+node].setValue(message[node]);
+		}
+		
+		params[BYPASS_PARAM].setValue(message[16]);
+		params[BYPASS_PARAM+1].setValue(message[17]);
+
+	}
+	
+	
+	void processExpander() {
+		if(leftExpander.module and leftExpander.module->model == modelNetworkExpander) {
+			float *message = (float*) leftExpander.module->rightExpander.consumerMessage;
+			processExpanderMessage(message);
+
+			leftExpander.module->rightExpander.messageFlipRequested = true;
+			
+			
+		}
+		else if(rightExpander.module and rightExpander.module->model == modelNetworkExpander) {
+			float *message = (float*) rightExpander.module->leftExpander.consumerMessage;
+			processExpanderMessage(message);
+
+			rightExpander.module->leftExpander.messageFlipRequested = true;
+
+		}
+		else expanderHold = false;
+	}
+
 
     void process(const ProcessArgs& args) override {
+		processExpander();
         
+		resetLightBrightness = 0.f;
+		
 		if(resetBtnTrigger.process(params[RESET_PARAM].getValue()))
 			resetNodes();
 
@@ -344,17 +390,21 @@ struct Network : Module {
 			if(resetTriggers[i].process(val))
 				resetNodes();		
 		}
+		lights[RESET_LIGHT].setSmoothBrightness(resetLightBrightness, args.sampleTime);
 
-        outputRouter.process(
+		
+		if(inputs[ATTENUVERSION_INPUT].isConnected())
+			params[ATTENUVERSION_PARAM].setValue(inputs[ATTENUVERSION_INPUT].getVoltage()/10.f);
+		
+		outputRouter.process(
 			args.sampleTime,
 			params[BIPOLAR_PARAM].getValue() > 0.f,
-			inputs[ATTENUVERSION_INPUT].isConnected() ?
-			inputs[ATTENUVERSION_INPUT].getVoltage()/10 :
 			params[ATTENUVERSION_PARAM].getValue()
 		);
+
         
         for(int node = 0; node < 4*4; node++){			
-            nodes[node].process(args.sampleTime);
+            nodes[node].process(args.sampleTime, expanderHold, expanderCV[node]);
         }
 		lights[BYPASS_LIGHT].setSmoothBrightness(nodes[0].isBypass() ? 1.f : 0.f, args.sampleTime);
 		lights[BYPASS_LIGHT+1].setSmoothBrightness(nodes[8].isBypass() ? 1.f : 0.f, args.sampleTime);
@@ -504,25 +554,32 @@ struct NetworkWidget : ModuleWidget {
                         addOutput(createOutputCentered<RoundJackOut>(mm2px(Vec(cx+x, cy+y)), module, Network::TRIG_OUTPUT+outsDone++));
 
                 }						
-				
+							
+				addParam(createParamCentered<KnobLarge>(mm2px(Vec(cx,cy)), module, Network::VAL_PARAM+nodesDone));
 				knobLights[nodesDone] = createLightCentered<KnobLight>(mm2px(Vec(cx,cy)), module, Network::TRIG_LIGHT + nodesDone);
-				addChild(knobLights[nodesDone]);			
- 			
-				addParam(createParamCentered<KnobTransparent>(mm2px(Vec(cx,cy)), module, Network::VAL_PARAM+nodesDone));
-				
+				addChild(knobLights[nodesDone]);		
+
 				if( j == 0 && i % 2 == 0){
 					x = cos(PI*2/6)*dist*2;
 					y = sin(PI*2/6)*dist*2;
-					addChild(createLightCentered<KnobLight>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_LIGHT+bypassesDone));
-					addParam(createParamCentered<PushButtonLargeTransparent>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_PARAM+bypassesDone));
+					addParam(createParamCentered<PushButtonLarge>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_PARAM+bypassesDone));
+					addChild(createLightCentered<ButtonLight>(mm2px(Vec(cx-x,cy+y)), module, Network::BYPASS_LIGHT+bypassesDone));
 					bypassesDone++;
 				}
 				nodesDone++;
 			}
 		}
 
-		dist = 8;
 		cx = border; cy = 128.5 - (border*0.8);
+
+		auto b = createParamCentered<PushButtonLarge>(mm2px(Vec(cx, cy)), module, Network::RESET_PARAM);
+		dynamic_cast<Switch*>(b)->momentary = true;
+		addParam(b);
+
+		addChild(createLightCentered<ButtonLight>(mm2px(Vec(cx,cy)), module, Network::RESET_LIGHT));
+		
+
+		dist = 8.2;	
 		for(int k = 0; k < 6; k++){
 			angle = (k+0.5)* (PI*2/6);
 			x = cos(angle)*dist;
@@ -530,7 +587,6 @@ struct NetworkWidget : ModuleWidget {
 
 			addInput(createInputCentered<PJ301MPort>(mm2px(Vec(cx+x, cy+y)), module, Network::RESET_INPUT+k));
 		}
-		addParam(createParamCentered<PushButtonMomentaryLarge>(mm2px(Vec(cx, cy)), module, Network::RESET_PARAM));
 		
 		cy += 0.5f;
 		addOutput(createOutputCentered<RoundJackOutRinged>(mm2px(Vec(115, cy-5)), module, Network::CV_OUTPUT));
@@ -540,7 +596,7 @@ struct NetworkWidget : ModuleWidget {
 		cy -= 4.f;
 		addParam(createParamCentered<RockerSwitchVertical>(mm2px(Vec(43.463, cy)), module, Network::BIPOLAR_PARAM));
 		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(47, cy+8.1)), module, Network::ATTENUVERSION_INPUT));
-		addParam(createParamCentered<KnobTransparentDotted>(mm2px(Vec(53, cy)), module, Network::ATTENUVERSION_PARAM));
+		addParam(createParamCentered<KnobLarge>(mm2px(Vec(53, cy)), module, Network::ATTENUVERSION_PARAM));
 		
 	}
 
@@ -550,10 +606,10 @@ struct NetworkWidget : ModuleWidget {
 		if (module) {
 			for(int node = 0; node < 4*4; node++){
 				if(module->nodes[node].isBypass()){
-					knobLights[node]->bgColor = nvgRGB(0x10,0x00,0x00); 	
+					knobLights[node]->bgColor = MOG_BLACK;//nvgRGB(0x10,0x00,0x00); 	
 				}
 				else{ 
-					knobLights[node]->bgColor = nvgRGB(0x3B, 0x3B, 0x3B);
+					knobLights[node]->bgColor = MOG_GREY_DARK; //nvgRGB(0x3B, 0x3B, 0x3B);
 				}
 			}
 		}
@@ -577,6 +633,7 @@ struct NetworkWidget : ModuleWidget {
 		polyModeItem->rightText = RIGHT_ARROW;
 		polyModeItem->module = module;
 		menu->addChild(polyModeItem);
+
 
 	}
 
