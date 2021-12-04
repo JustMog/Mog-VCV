@@ -90,7 +90,7 @@ struct KnobTransparentDotted : RoundKnob {
 struct KnobLight : app::ModuleLightWidget {
 
 	KnobLight() {
-		this->box.size = app::mm2px(math::Vec(5.731,5.731));//11.077,11.077));
+		this->box.size = mm2px(math::Vec(5.731,5.731));//11.077,11.077));
 		this->bgColor = nvgRGB(0x3b, 0x3b, 0x3b); //nvgRGB(0x0e, 0x69, 0x77);
 		this->addBaseColor(nvgRGB(0xff, 0xff, 0xff)); //nvgRGB(0xff, 0xcc, 0x03));
 	}
