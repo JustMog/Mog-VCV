@@ -221,7 +221,7 @@ struct Readout : TransparentWidget{
 
 		int xOff = 0;
 		if(module && knob){
-			int val = (int)knob->paramQuantity->getDisplayValue();
+			int val = (int)knob->getParamQuantity()->getDisplayValue();
 			text_to_display = std::to_string(val);
 			if(val < 10) xOff = 4;
 		}
