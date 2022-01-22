@@ -2,6 +2,16 @@ Mog-VCV
 ===========================
 Mog's modules for VCV Rack
 
+**Notice:**
+--
+**This repo is no longer maintained**, and i can't provide support for it in future.
+
+I would prefer any forks not be submitted to the vcv official library as i don't wish to have any part of a project whose lead [treats contributors with such disdain](https://aria.dog/barks/why-i-will-never-create-modules-for-vcv-rack-anymore).
+Instead, the modules are available on [cardinal](https://github.com/DISTRHO/Cardinal).
+
+However, feel free to build for your own personal use, again with the caveat that i can't offer any support. 
+Thank you for your understanding.
+
 **Network:**
 ---------------------------
 ![Network](https://github.com/JustMog/Mog-VCV-Docs/blob/master/doc/network.png)
